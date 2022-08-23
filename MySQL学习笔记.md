@@ -273,7 +273,7 @@ Data Manipulation Language,用来对数据库中表的数据记录进行增删�
 
 ##### ==注意事项==
 
-- 修改语句的条件是可以有，也可以没有的，即：==如果没有带WHERE条件，则会修改 或 删除 整张表的所有数据==。
+- 修改语句的==WHERE条件==是可有，也可以没有的，即：==如果没有带WHERE条件，则会修改 或 删除 整张表的所有数据==。
 - DELETE语句不能删除某个指定字段对应数据的值（但可以使用UPDATE 将对应字段set为NULL即可！）
 
 ### DQL（数据查询语言）
@@ -301,7 +301,7 @@ LIMIT
 
 #### 基础查询-语法
 
-查询多个字段：
+查询多个字段：（==基础查询的关键字是SELECT FROM==）
 `SELECT 字段1, 字段2, 字段3, ... FROM 表名;`
 `SELECT * FROM 表名;`
 
@@ -330,7 +330,7 @@ LIMIT
 
 #### 条件查询-语法
 
-语法：
+语法：（==分页查询的关键字是WHERE==）
 `SELECT 字段列表 FROM 表名 WHERE 条件列表;`
 
 条件：
@@ -397,7 +397,9 @@ SELECT * from employee where idcard IS NOT NULL;
 
 #### 聚合函数-语法
 
-常见聚合函数：
+聚合函数：将==一列数据==作为==一个整体==，进行==纵向计算==。
+
+常见聚合函数：（这些函数都是作用于table的某一列数据的）
 
 | 函数  | 功能     |
 | ----- | -------- |
@@ -412,29 +414,52 @@ SELECT * from employee where idcard IS NOT NULL;
 例：
 `SELECT count(id) from employee where workaddress = "广东省";`
 
+例子：
+
+```mysql
+-- 1.统计企业员工数量
+SELECT COUNT(*) FROM employee; 
+-- 或者,因为每条记录都要对应的id号
+SELECT COUNT(id) FROM employee;
+-- 2.统计企业员工的平均年龄
+SELECT AVG(age) FROM employee;
+-- 3.统计企业员工的最大年龄
+SELECT MAX(age) FROM employee;
+-- 4.统计企业员工的最小年龄
+SELECT MIN(age) FROM employee;
+-- 5.统计企业all女性员工的年龄和
+SELECT SUM(age) FROM employee WHERE gender = '女';
+```
+
+###### 注意事项：
+
+- ==所有的NULL值==都不参与所有聚合函数的运算。
+
 #### 分组查询（==分组操作通常会配合着前面介绍的聚合函数一起操作==）-语法
 
-语法：
+语法：（==分组查询的关键字是GROUP BY==）
 `SELECT 字段列表 FROM 表名 [ WHERE 条件 ] GROUP BY 分组字段名 [ HAVING 分组后的过滤条件 ];`
 
-where 和 having 的区别：
+一般而言，你的==分组字段是什么==，就==SELECT什么字段==！！！
 
-- 执行时机不同：where是分组之前进行过滤，不满足where条件不参与分组；having是分组后对结果进行过滤。
-- 判断条件不同：where不能对聚合函数进行判断，而having可以。
+==where 和 having 的区别==：
+
+- 执行时机不同：where是==分组之前==进行过滤，不满足where条件不参与分组；having是==分组之后==对结果进行过滤。
+- 判断条件不同：where不能对聚合函数进行判断（即where不能使用聚合函数），而having可以。
 
 例子：
 
 ```mysql
--- 根据性别分组，统计男性和女性数量（只显示分组数量，不显示哪个是男哪个是女）
+-- 1.根据性别分组，统计男性和女性数量（仅显示分组数量，不显示哪个是男哪个是女）
 select count(*) from employee group by gender;
--- 根据性别分组，统计男性和女性数量
+-- 2.根据性别分组，统计男性和女性数量（既显示分组数量，又显示哪个是男哪个是女）
 select gender, count(*) from employee group by gender;
--- 根据性别分组，统计男性和女性的平均年龄
+-- 3.根据性别分组，统计男性和女性的平均年龄
 select gender, avg(age) from employee group by gender;
--- 年龄小于45，并根据工作地址分组
+-- 4.年龄小于45，并根据工作地址分组
 select workaddress, count(*) from employee where age < 45 group by workaddress;
--- 年龄小于45，并根据工作地址分组，获取员工数量大于等于3的工作地址
-select workaddress, count(*) address_count from employee where age < 45 group by workaddress having address_count >= 3;
+-- 5.年龄小于45，并根据工作地址分组，获取员工数量大于等于3的工作地址
+select workaddress, count(*) as address_count from employee where age < 45 group by workaddress having address_count >= 3;
 ```
 
 ######  注意事项
@@ -444,12 +469,12 @@ select workaddress, count(*) address_count from employee where age < 45 group by
 
 #### 排序查询-语法
 
-语法：
+语法：（==排序查询的关键字是ORDER BY==）
 `SELECT 字段列表 FROM 表名 ORDER BY 字段1 排序方式1, 字段2 排序方式2;`
 
 排序方式：
 
-- ASC: 升序（默认）
+- ASC: 升序（默认缺省排序方式时就是do升序的）
 - DESC: 降序
 
 例子：
@@ -458,26 +483,27 @@ select workaddress, count(*) address_count from employee where age < 45 group by
 -- 根据年龄升序排序
 SELECT * FROM employee ORDER BY age ASC;
 SELECT * FROM employee ORDER BY age;
--- 两字段排序，根据年龄升序排序，入职时间降序排序
+-- 两字段排序，先根据年龄升序排序，年龄相同，再根据入职时间降序排序
 SELECT * FROM employee ORDER BY age ASC, entrydate DESC;
 ```
 
 ###### 注意事项
 
-如果是多字段排序，当第一个字段值相同时，才会根据第二个字段进行排序
+- 如果是多字段排序，当第一个字段值相同时，才会根据第二个字段进行排序(先按照第一个字段值进行排序，然后再按照第二个字段进行排序)
+
 
 #### 分页查询-语法
 
-语法：
+语法：（==分页查询的关键字是LIMIT==）
 `SELECT 字段列表 FROM 表名 LIMIT 起始索引, 查询记录数;`
 
 例子：
 
 ```mysql
 -- 查询第一页数据，展示10条
-SELECT * FROM employee LIMIT 0, 10;
+SELECT * FROM employee LIMIT 0, 10;# 从索引0开始查询10条数据
 -- 查询第二页
-SELECT * FROM employee LIMIT 10, 10;
+SELECT * FROM employee LIMIT 10, 10;# 从索引1开始查询10条数据
 ```
 
 ###### 注意事项
@@ -486,18 +512,32 @@ SELECT * FROM employee LIMIT 10, 10;
 - 分页查询是数据库的方言，不同数据库有不同实现，MySQL是LIMIT
 - 如果查询的是第一页数据，起始索引可以省略，直接简写 LIMIT 10
 
-#### DQL执行顺序
+#### DQL执行顺序(这是非常重要的小细节！越往==右边==，执行==优先级越低==)
 
-FROM -> WHERE -> GROUP BY -> SELECT -> ORDER BY -> LIMIT
+FROM -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY -> LIMIT
+
+比如：
+
+```mysql
+-- 查询性别为男，且年龄在20到40岁（含）以内的前5个员工的信息，并对查询结果按照年龄升序排序，年龄相同按照入职时间升序排序,其中前几个员工信息就是要用分页操作，索引为0，查询记录数是5而已。
+SELECT * FROM employee WHERE gender = '男' and (age BETWEEN 20 and 40 ) ORDER BY age ASC,entrydate ASC LIMIT 0,6;
+-- 为了你的sql语句更可读，加个括号()是ok的！没问题的！
+```
 
 ### DCL
+
+Data Control Language,数据控制语言，用来：
+
+①管理数据库的用户：比如一个MySQL服务器，能给哪些用户来访问。
+
+②控制数据库的访问权限（每个用户具体有什么样的访问权限）：比如用户能操作总数据库里面的哪几个数据库。
 
 #### 管理用户
 
 查询用户：
 
 ```mysql
-USER mysql;
+USE mysql;
 SELECT * FROM user;
 ```
 
@@ -510,12 +550,22 @@ SELECT * FROM user;
 删除用户：
 `DROP USER '用户名'@'主机名';`
 
+其中，
+
+用户名：哪个用户能够访问当前的mysql数据库服务器！
+
+主机名：在哪个主机上能够访问当前的mysql数据库服务器！
+
+```mysql
+'localhost':表示当前本地主机
+```
+
 例子：
 
 ```mysql
 -- 创建用户test，只能在当前主机localhost访问
 create user 'test'@'localhost' identified by '123456';
--- 创建用户test，能在任意主机访问
+-- 创建用户test，能在任意主机访问该mysql服务器,只需要用通配符%就可以实现！
 create user 'test'@'%' identified by '123456';
 create user 'test' identified by '123456';
 -- 修改密码
@@ -527,37 +577,66 @@ drop user 'test'@'localhost';
 ##### 注意事项
 
 - 主机名可以使用 % 通配
+- 这类SQL语句，对于开发人员来说操作的比较少，主要是运维和DBA（Database Administrator 数据库管理员）使用。
 
 #### 权限控制
 
-常用权限：
+mysql中定义了许多种权限，但非常常用的权限就如下几种：
 
-| 权限                | 说明               |
-| ------------------- | ------------------ |
-| ALL, ALL PRIVILEGES | 所有权限           |
-| SELECT              | 查询数据           |
-| INSERT              | 插入数据           |
-| UPDATE              | 修改数据           |
-| DELETE              | 删除数据           |
-| ALTER               | 修改表             |
-| DROP                | 删除数据库/表/视图 |
-| CREATE              | 创建数据库/表      |
+| 权限                | 说明                       |
+| ------------------- | -------------------------- |
+| ALL, ALL PRIVILEGES | 所有权限  的权限           |
+| SELECT              | 查询数据  的权限           |
+| INSERT              | 插入数据  的权限           |
+| UPDATE              | 修改数据  的权限           |
+| DELETE              | 删除数据  的权限           |
+| ALTER               | 修改表      的权限         |
+| DROP                | 删除数据库/表/视图  的权限 |
+| CREATE              | 创建数据库/表  的权限      |
 
 更多权限请看[权限一览表](#权限一览表 "权限一览表")
 
-查询权限：
+下面只介绍3种常用权限的语法：
+
+1.查询权限：
 `SHOW GRANTS FOR '用户名'@'主机名';`
 
-授予权限：
+2.授予权限：
 `GRANT 权限列表 ON 数据库名.表名 TO '用户名'@'主机名';`
 
-撤销权限：
+3.撤销权限：
 `REVOKE 权限列表 ON 数据库名.表名 FROM '用户名'@'主机名';`
 
 ##### 注意事项
 
-- 多个权限用逗号分隔
+- 多个权限 应 使用逗号,分隔
+
 - 授权时，数据库名和表名可以用 * 进行通配，代表所有
+
+- 若授权给一个用户 \*.\*的权限就相当于这个用户就是另一个root用户的意思了！
+
+  (比如：GRANT ALL on *.* TO 'linzhuofan'@'%';)
+
+例子：
+
+```mysql
+-- 1.查询权限
+show GRANTS FOR 'linzhuofan'@'%';
+result:
+GRANT USAGE ON *.* TO `linzhuofan`@`%`
+-- 其中，USAGE表示该用户仅仅拥有登录并连接上mysql服务器的权限而已
+-- 2.授予权限
+GRANT ALL on itcast.* TO 'linzhuofan'@'%';
+show GRANTS FOR 'linzhuofan'@'%';
+result:
+GRANT USAGE ON *.* TO `linzhuofan`@`%`
+GRANT ALL PRIVILEGES ON `itcast`.* TO `linzhuofan`@`%`
+-- 3.撤销权限
+REVOKE all on itcast.* from 'linzhuofan'@'%';
+show GRANTS FOR 'linzhuofan'@'%';
+result:
+GRANT USAGE ON *.* TO `linzhuofan`@`%`
+```
 
 ## 函数
 
