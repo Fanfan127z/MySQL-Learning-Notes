@@ -2,6 +2,8 @@
 
 ![image-20220821171304267](C:\Users\11602\AppData\Roaming\Typora\typora-user-images\image-20220821171304267.png)
 
+# MySQL学习技巧：==学习mysql videos时候，我先自己看着笔记自行先敲一次，弄好了再过一遍视频，这这样子会学的比较扎实！==
+
 # 基础篇（学完就能处理大部分的数据库业务开发工作了）
 
 （我直接在我的服务器上按照MySQL，然后用我的Vscode连接并进行学习即可！）
@@ -640,6 +642,8 @@ GRANT USAGE ON *.* TO `linzhuofan`@`%`
 
 ## 函数
 
+函数：指的是可以直接被另一段程序调用的程序或代码。在mysql中已经内置好了许多函数，我们要do的就是调用这些函数来实现我们的业务需求！
+
 - 字符串函数
 - 数值函数
 - 日期函数
@@ -647,21 +651,22 @@ GRANT USAGE ON *.* TO `linzhuofan`@`%`
 
 ### 字符串函数
 
-常用函数：
+常用的字符串函数：
 
 | 函数  | 功能  |
 | ------------ | ------------ |
 | CONCAT(s1, s2, ..., sn)  | 字符串拼接，将s1, s2, ..., sn拼接成一个字符串  |
 | LOWER(str)  | 将字符串全部转为小写  |
 | UPPER(str)  | 将字符串全部转为大写  |
-| LPAD(str, n, pad)  | 左填充，用字符串pad对str的左边进行填充，达到n个字符串长度  |
-| RPAD(str, n, pad)  | 右填充，用字符串pad对str的右边进行填充，达到n个字符串长度  |
-| TRIM(str)  | 去掉字符串头部和尾部的空格  |
-| SUBSTRING(str, start, len)  | 返回从字符串str从start位置起的len个长度的字符串  |
+| LPAD(str, n, pad)  | ==左==填充，用字符串pad对str的左边进行填充，达到n个字符串长度（拿pad填充str的左边部分字符串，然后达到总字符串长度为n） |
+| RPAD(str, n, pad)  | ==右==填充，用字符串pad对str的右边进行填充，达到n个字符串长度（拿pad填充str的右边部分字符串，然后达到总字符串长度为n） |
+| TRIM(str)  | 去掉字符串头部和尾部的空格（中间的空格子不管！） |
+| SUBSTRING(str, start, len)  | 返回从字符串str从start位置起的len个长度的字符串,其中起始索引是1！而不是0！SELECT SUBSTR('linzhuofan',1,3); ==> 'lin' |
 
 使用示例：
 
 ```mysql
+# 使用方式：SELECT 函数(params);
 -- 拼接
 SELECT CONCAT('Hello', 'World');
 -- 小写
@@ -676,6 +681,10 @@ SELECT RPAD('01', 5, '-');
 SELECT TRIM(' Hello World ');
 -- 切片（起始索引为1）
 SELECT SUBSTRING('Hello World', 1, 5);
+
+# 小需求：员工中workno不为5位数的就在其前面补齐0！补到共长为5位数为止。
+# 比如，1号员工workno=00001,100号员工workno=00100
+UPDATE employee SET workno = LPAD(employee.workno,5,'0');
 ```
 
 ### 数值函数
@@ -684,11 +693,29 @@ SELECT SUBSTRING('Hello World', 1, 5);
 
 | 函数  | 功能  |
 | ------------ | ------------ |
-| CEIL(x)  | 向上取整  |
-| FLOOR(x)  | 向下取整  |
+| CEIL(x)  | 向上取整 (比如1.1向上取整==》2)只要小数位不为0都能够取成功！ |
+| FLOOR(x)  | 向下取整 (比如3.8向下取整==》3)只要小数位不为0都能够取成功！ |
 | MOD(x, y)  | 返回x/y的模  |
 | RAND() | 返回0~1内的随机数 |
 | ROUND(x, y) | 求参数x的四舍五入值，保留y位小数 |
+
+使用示例：
+
+```mysql
+SELECT FLOOR(3.8);
+SELECT CEIL(3.8);
+SELECT FLOOR(3.8);
+SELECT MOD(6,2);
+select RAND();
+SELECT ROUND(3.384612,3);
+# 小需求：通过数据库函数，生成一个6位数的随机验证码
+-- 考虑到0.099999*1000000还是个5位数
+-- way1:不足6位数就补齐0！在前面补'0' or 在后面补'0'都ok！
+SELECT LPAD(ROUND(RAND()*1000000,0),6,'0') as'6位数随机验证码';
+SELECT RPAD(ROUND(RAND()*1000000,0),6,'0') as'6位数随机验证码';
+-- way2:
+SELECT if(RAND() < 0.1,ROUND(RAND()*10000000,0),ROUND(RAND()*1000000,0))as '6位数随机验证码';
+```
 
 ### 日期函数
 
@@ -702,17 +729,36 @@ SELECT SUBSTRING('Hello World', 1, 5);
 | YEAR(date)  | 获取指定date的年份  |
 | MONTH(date)  | 获取指定date的月份  |
 | DAY(date)  | 获取指定date的日期  |
-| DATE_ADD(date, INTERVAL expr type)  | 返回一个日期/时间值加上一个时间间隔expr后的时间值  |
-| DATEDIFF(date1, date2)  | 返回起始时间date1和结束时间date2之间的天数  |
+| DATE_ADD(date, INTERVAL expr type)  | 返回一个指定日期/时间值的基础上再加上一个时间间隔expr后的时间值，单位是type：可选（YEAR/MONTH/DAY） |
+| DATEDIFF(date1, date2)  | 返回 起始时间date1 和 结束时间date2 之间的==天数==,即（date1-date2） |
 
-例子：
+使用示例：
 
 ```mysql
--- DATE_ADD
-SELECT DATE_ADD(NOW(), INTERVAL 70 YEAR);
+SELECT CURDATE();
+SELECT CURTIME();
+SELECT NOW();
+SELECT YEAR('2021.10.1');
+SELECT YEAR('2000-8-1');
+SELECT MONTH('2021.10.1');
+SELECT MONTH('2000-8-1');
+SELECT DAY('2000-8-12');
+SELECT DAY('2021.10.1');
+-- DATE_ADD 当前时间往后加10年
+SELECT DATE_ADD(NOW(),INTERVAL 10 YEAR);
+-- DATE_ADD 当前时间往后加70个月
+SELECT DATE_ADD(NOW(),INTERVAL 70 MONTH);
+-- DATE_ADD 当前时间往后加70天
+SELECT DATE_ADD(NOW(),INTERVAL 70 DAY);
+SELECT DATEDIFF('2022.8.25',NOW());
+
+# 小需求：查询所有员工的入职天数，并根据入职天数进行倒序排序
+SELECT `name`,entrydate as '入职时间',DATEDIFF(CURDATE(),entrydate) as '入职天数/天' FROM employee ORDER BY '入职天数/天' DESC;
 ```
 
 ### 流程函数
+
+流程控制函数可以在SQL语句中实现条件的筛选，从而提高语句的效率。
 
 常用函数：
 
@@ -720,42 +766,100 @@ SELECT DATE_ADD(NOW(), INTERVAL 70 YEAR);
 | ------------ | ------------ |
 | IF(value, t, f)  | 如果value为true，则返回t，否则返回f  |
 | IFNULL(value1, value2)  | 如果value1不为空，返回value1，否则返回value2  |
-| CASE WHEN [ val1 ] THEN [ res1 ] ... ELSE [ default ] END  | 如果val1为true，返回res1，... 否则返回default默认值  |
-| CASE [ expr ] WHEN [ val1 ] THEN [ res1 ] ... ELSE [ default ] END  | 如果expr的值等于val1，返回res1，... 否则返回default默认值  |
+| CASE WHEN [ val1 ] THEN [ res1 ] WHEN [ val2 ] THEN [ res2 ]... ELSE [ default ] END | 如果val1为true，返回res1，... 否则返回default默认值（==好用==） |
+| CASE [ expr ] WHEN [ val1 ] THEN [ res1 ] WHEN [ val2 ] THEN [ res2 ]... ELSE [ default ] END | 如果expr的值等于val1，返回res1，... 否则返回default默认值  |
+
+其中，第三个和第四个常用case end函数是差不多的，你择一用之即可！但我个人认为==第1种case end语法上非常好用！！！==
 
 例子：
 
 ```mysql
+-- IF(value, t, f)
+SELECT IF(TRUE,'ok','no');
+SELECT IF(FALSE,'ok','no');
+-- IFNULL(value1, value2)
+SELECT IFNULL('ok','no');# result: 'ok'
+SELECT IFNULL('','no');	 # result: ''
+SELECT IFNULL(NULL,'no');# result: 'no'
+-- CASE WHEN [ val1 ] THEN [ res1 ] WHEN [ val2 ] THEN [ res2 ]... ELSE [ default ] END，可简记为：CASE WHEN THEN WHEN THEN ELSE END;
 select
 	name,
-	(case when age > 30 then '中年' else '青年' end)
+	(case when age > 30 then '中年' else '青年' END)
 from employee;
 select
 	name,
-	(case workaddress when '北京市' then '一线城市' when '上海市' then '一线城市' else '二线城市' end) as '工作地址'
+	(case workaddress when '北京市' then '一线城市' when '上海市' then '一线城市' else '二线城市' END) as '工作地址'
 from employee;
+
+# 在员工表中，idcard 若为空，则只打印男性的信息，否则，打印女性的信息
+SELECT * FROM employee WHERE IF(employee.idcard IS NULL,gender = '男',gender = '女');
+
+# 在员工表中，idcard 若不为空，则只打印次条件下idcar='449'的员工信息
+# 若idcar为空，且age不为空，则纸打印次条件下age=21的员工的信息
+SELECT * FROM employee WHERE IFNULL(employee.idcard,employee.age) IN('449',21);
+# 在员工表中判断每个人的年龄段
+SELECT `name`,age, (CASE WHEN age <= 21 THEN '青年' ELSE '中年' END) as '年龄段' FROM employee;
+SELECT * FROM employee WHERE DATEDIFF(entrydate,'2022-8-10')=0;
+# 在员工表中判断每个人的新老类型
+SELECT `name`,AGE,( CASE age WHEN 21 THEN '老员工' WHEN 10 THEN '新员工' ELSE '不老不新员工'END)as '员工类型' FROM employee;
+# 在员工表中判断每个人的男女or不男不女类型
+SELECT `name`,entrydate,( CASE WHEN DATEDIFF(entrydate,'2022-8-7')='0' THEN '老员工' WHEN DATEDIFF(entrydate,'2022-8-7')='3' THEN '新员工' ELSE '不老不新员工'END )as '员工类型' FROM employee;
+SELECT `name`,gender,( CASE gender WHEN '女' THEN '女员工' WHEN '男' THEN '男员工' ELSE '不男不女员工'END)as '员工类型' FROM employee;
+# 小需求：
+/*
+	统计班上各个学员的成绩，展示的规则如下：
+	>= 85,展示优秀
+	>= 60,展示及格
+	否则，展示不及格
+*/
+CREATE TABLE score(
+	id int COMMENT 'ID',
+	name VARCHAR(20) COMMENT '姓名',
+	math int COMMENT '数学',
+	english int COMMENT '英语',
+	chinese int COMMENT '语文'
+)COMMENT '学生成绩表';
+INSERT INTO score(id,name,math,english,chinese)
+VALUES(1,'Tom',67,88,95),(2,'Rose',23,66,90),(3,'Jack',56,98,76);
+# 需求实现：
+SELECT 
+id,
+`name`,
+(case when score.math >= 85 then'优秀' when score.math >= 60 then '及格' else '不及格'end) as'数学成绩',
+(case when score.english >= 85 then'优秀' when score.english >= 60 then '及格' else '不及格'end) as'英语成绩',
+(case when score.chinese >= 85 then'优秀' when score.english >= 60 then '及格' else '不及格'end) as'语文成绩'
+FROM score;
+
 ```
 
+##### 注意事项
+
+- 一定不要忘记对于==CASE==流程语句要加==END==!!!
+
 ## 约束
+
+概念：约束就是束缚和限制，是作用于表中字段上的规则。用来限制表中存储的数据。
+
+目的：保证数据库中数据的==正确==、==有效==和==完整性==。
 
 分类：
 
 | 约束  | 描述  | 关键字  |
 | ------------ | ------------ | ------------ |
 | 非空约束  | 限制该字段的数据不能为null  | NOT NULL  |
-| 唯一约束  | 保证该字段的所有数据都是唯一、不重复的  | UNIQUE  |
-| 主键约束  | 主键是一行数据的唯一标识，要求非空且唯一  | PRIMARY KEY  |
+| 唯一约束  | 保证该字段在整张表格中的所有数据都是唯一、不重复的（比如用户注册时的手机号，身份证号等数据） | UNIQUE  |
+| ==主键约束== | 主键是一张表格中数据的==唯一标识==，要求非空且唯一（许多规范认为，我们设计一张表格时必须要有主键约束） | PRIMARY KEY  |
 | 默认约束  | 保存数据时，如果未指定该字段的值，则采用默认值  | DEFAULT  |
-| 检查约束（8.0.1版本后）  | 保证字段值满足某一个条件  | CHECK  |
-| 外键约束  | 用来让两张图的数据之间建立连接，保证数据的一致性和完整性  | FOREIGN KEY  |
+| 检查约束（MySQL自8.0.1版本后才支持这个检查约束） | 保证字段值满足某一个 或 多个 条件 | CHECK  |
+| 外键约束（一旦谈到外键，则至少要有两张表格） | 用来让两张图的数据之间建立连接，保证数据的一致性和完整性  | FOREIGN KEY  |
 
-约束是作用于表中字段上的，可以再创建表/修改表的时候添加约束。
+注意：约束是作用于==表中的字段==上的，so我们可以在创建表/修改表的时候添加约束。
 
 ### 常用约束
 
 | 约束条件  | 关键字  |
 | ------------ | ------------ |
-| 主键  | PRIMARY KEY  |
+| 主键  | PRIMARY KEY（==对于主键约束来说，其本来就是非空和唯一的了！！！==） |
 | 自动增长  | AUTO_INCREMENT  |
 | 不为空  | NOT NULL  |
 | 唯一  | UNIQUE  |
@@ -764,19 +868,45 @@ from employee;
 
 例子：
 
+![2](C:\Users\11602\Desktop\MySQL学习\学习截图\2.JPG)
+
 ```mysql
-create table user(
-	id int primary key auto_increment,
-	name varchar(10) not null unique,
-	age int check(age > 0 and age < 120),
-	status char(1) default '1',
-	gender char(1)
-);
+-- 创建表
+CREATE TABLE user(
+	id int primary key auto_increment COMMENT '主键',
+	name varchar(10) not null UNIQUE COMMENT '姓名',
+	age int CHECK(age > 0 and age <= 120) COMMENT '年龄',
+	status char(1) DEFAULT('1') COMMENT '状态',
+	gender char(1) COMMENT '性别'
+)comment '用户信息表';
+-- 插入数据 测试以上约束关键字 是否起作用
+INSERT into user (name,age,status,gender) VALUES('Tom1',19,'1','男'),('Tom2',25,'0','男');
+
+INSERT into user (name,age,status,gender) VALUES('Tom3',29,'1','男');
+INSERT into user (name,age,status,gender) VALUES('Tom3',29,'1','男');
+
+INSERT into user (name,age,status,gender) VALUES('Tom5',10,'','男');
+INSERT into user (name,age,status,gender) VALUES(NULL,12,'1','男');
+INSERT into user (name,age,status,gender) VALUES('Tom6',80,'2','男');
+INSERT into user (name,age,gender) VALUES('Tom7',89,'男');
 ```
 
 ### 外键约束
 
-添加外键：
+概念：外键用来让两张表的数据之间建立连接，从而保证数据的==一致性==和==完整性==。
+
+①==具有==外键约束的表称之为 ==子表（从表）==
+
+②外键约束==所关联==的这张表称之为 ==父表（主表）==
+
+![3](C:\Users\11602\Desktop\MySQL学习\学习截图\3.JPG)
+
+##### ==注意事项==
+
+- 目前上述的两张表，在数据库层面，并未建立外键关联，so是无法保证数据的一致性和完整性的。（==人话==就是：当前的这两张表是没有任何物理外键关系的，当我删除了主表的id后，子表的dept_id不会有任何的影响！）
+- 若当两张表有外键关联后，你要是==删除主表==中==外键对应的字段==的数据的话，MySQL管理工具就会报错！即你无法删除！这就保证了关联数据之间的一致性和完整性了！当然，你只是删除子表中外键对应的字段那当前是没事儿的！
+
+添加==外键约束==关联的语法：
 
 ```mysql
 CREATE TABLE 表名(
@@ -784,14 +914,51 @@ CREATE TABLE 表名(
 	...
 	[CONSTRAINT] [外键名称] FOREIGN KEY(外键字段名) REFERENCES 主表(主表列名)
 );
-ALTER TABLE 表名 ADD CONSTRAINT 外键名称 FOREIGN KEY (外键字段名) REFERENCES 主表(主表列名);
+ALTER TABLE 表名 ADD CONSTRAINT 外键名称 FOREIGN KEY (子表中的外键字段名) REFERENCES 主表(主表列名);
 
--- 例子
+-- 例子：其中，外键名称自拟！
 alter table emp add constraint fk_emp_dept_id foreign key(dept_id) references dept(id);
 ```
 
 删除外键：
 `ALTER TABLE 表名 DROP FOREIGN KEY 外键名;`
+
+例子：
+
+```mysql
+-- 创建部门表
+create table dept(
+	id int primary key auto_increment comment 'ID',
+	name varchar(10) NOT NULL comment '部门名称' 
+)comment '部门表';
+INSERT INTO dept(id,name) VALUES(1,'研发部'),(2,'市场部'),(3,'财务部'),(4,'销售部'),(5,'总经办');
+-- 创建员工表
+CREATE table emp(
+	id int primary key auto_increment comment 'ID',
+	name varchar(50) NOT NULL COMMENT '姓名',
+	age int comment '年龄',
+	job varchar(20) COMMENT '职位',
+	salary int COMMENT '薪资',
+	entrydate date comment '入职时间',
+	managerid int COMMENT '直属领导ID',
+	dept_id int comment '部门ID'
+)COMMENT '员工表';
+-- 添加数据
+INSERT INTO emp(id,name,age,job,salary,entrydate,managerid,dept_id)VALUES
+(1,'金莲',66,'总裁',20000,'2000-01-01',null,5),
+(2,'张无忌',20,'项目经理',12500,'2005-12-05',1,1),
+(3,'逍遥',33,'开发',8400,'2000-11-03',2,1),
+(4,'韦一笑',48,'开发',11000,'2002-02-05',2,1),
+(5,'常遇春',43,'开发',10500,'2004-09-07',3,1),
+(6,'小昭',19,'程序员鼓励师',6600,'2004-10-12',2,1);
+
+-- 添加外键
+ALTER table emp ADD CONSTRAINT fk_emp_dept_id FOREIGN key (dept_id) REFERENCES dept(id);
+-- 删除外键
+alter table emp drop FOREIGN key fk_emp_dept_id;
+```
+
+
 
 #### 删除/更新行为
 
@@ -801,10 +968,29 @@ alter table emp add constraint fk_emp_dept_id foreign key(dept_id) references de
 | RESTRICT  | 当在父表中删除/更新对应记录时，首先检查该记录是否有对应外键，如果有则不允许删除/更新（与NO ACTION一致）  |
 | CASCADE  | 当在父表中删除/更新对应记录时，首先检查该记录是否有对应外键，如果有则也删除/更新外键在子表中的记录  |
 | SET NULL  | 当在父表中删除/更新对应记录时，首先检查该记录是否有对应外键，如果有则设置子表中该外键值为null（要求该外键允许为null）  |
-| SET DEFAULT  | 父表有变更时，子表将外键设为一个默认值（Innodb不支持）  |
+| SET DEFAULT  | 当父表有变更时，子表将外键设为一个默认值（==在当前MySQL的默认引擎Innodb中是不支持的==），==so这个关键字基本不用==！ |
 
-更改删除/更新行为：
+更改 外键约束的 删除/更新行为 的语法：
 `ALTER TABLE 表名 ADD CONSTRAINT 外键名称 FOREIGN KEY (外键字段) REFERENCES 主表名(主表字段名) ON UPDATE 行为 ON DELETE 行为;`
+
+例子：
+
+```mysql
+-- 承接上面所创建的dept部门表与emp员工表
+-- 添加外键约束 并 设置 删除/更新行为是CASCADE的
+alter table emp add constraint fk_emp_dept_id foreign key(dept_id) references dept(id) on update cascade on delete cascade;
+alter table emp drop foreign key fk_emp_dept_id;
+-- 添加外键约束 并 设置 删除/更新行为是SET NULL的
+alter table emp add constraint fk_emp_dept_id foreign key(dept_id) references dept(id)
+on update set null on delete set null;
+alter table emp drop foreign key fk_emp_dept_id;
+```
+
+##### ==注意事项==
+
+- NO ACTION 和 RESTRICT 是外键约束的默认行为属性
+- ON UPDATE：指名在 主表 更新数据记录时 怎么操作（行为）
+- ON DELETE：指名在 主表 删除数据记录时 怎么操作（行为）
 
 ## 多表查询
 
