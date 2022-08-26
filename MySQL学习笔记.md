@@ -251,7 +251,7 @@ Data Manipulation Language,用来对数据库中表的数据记录进行增删�
 
 - 字符串和日期类型数据应该包含在引号''中
 - 插入的数据大小应该在字段的规定范围内
-- 插入数据时，指定的字段顺序需要与值的顺序是一一对应的
+- 插入数据时，==指定的字段==顺序需要与==值的顺序==是一一对应的
 
 
 
@@ -992,121 +992,279 @@ alter table emp drop foreign key fk_emp_dept_id;
 - ON UPDATE：指名在 主表 更新数据记录时 怎么操作（行为）
 - ON DELETE：指名在 主表 删除数据记录时 怎么操作（行为）
 
-## 多表查询
+## 多表查询（较为抽象，需要看视频配合学习）
 
 ### 多表关系
+
+实际项目开发时，在进行数据库表结构设计时，会根据业务需求及业务模块之间的关系，分析并设计表结构，由于业务之间相互关联，所以各个表结构之间也存在着各种联系，基本上分为三种：
 
 - 一对多（多对一）
 - 多对多
 - 一对一
 
-#### 一对多
+#### ①一对多（多对一）
 
 案例：部门与员工
 关系：一个部门对应多个员工，一个员工对应一个部门
 实现：在多的一方建立外键，指向一的一方的主键
 
-#### 多对多
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/4.JPG)
+
+#### ②多对多
 
 案例：学生与课程
 关系：一个学生可以选多门课程，一门课程也可以供多个学生选修
 实现：建立第三张中间表，中间表至少包含两个外键，分别关联两方主键
 
-#### 一对一
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/5.JPG)
+
+例子：
+
+```mysql
+-- 多对多
+# 创建学生表
+create table student(
+	id int auto_increment primary key comment '主键ID',
+	name varchar(10) comment '姓名',
+	no varchar(10) 	 comment '学号'
+)comment '学生表';
+insert into student values
+(null,'戴倚丝','2000100101'),
+(null,'谢逊','2000100102'),
+(null,'殷天正','2000100103'),
+(null,'韦一笑','2000100104');
+
+# 创建课程表
+create table course(
+	id int auto_increment primary key comment '主键ID',
+	name varchar(10) comment '课程名称'
+)comment '课程表';
+insert into course values(null,'Java'),(null,'PHP'),(null,'MySQL'),(null,'Hadoop');
+# 学生-课程中间表
+create table student_course(
+	id int auto_increment primary key COMMENT '',
+	studentid int not null comment '学生ID',
+	courseid int not null comment '课程ID',
+	constraint fk_studentid foreign key(studentid) references student(id),
+	constraint fk_courseid foreign key(courseid) references course(id)
+)comment '学生-课程中间表';
+
+insert into student_course values(null,1,1),(null,1,2),(null,1,3),(null,2,2),(null,2,3),(null,3,4);
+```
+
+#### ③一对一
 
 案例：用户与用户详情
-关系：一对一关系，多用于单表拆分，将一张表的基础字段放在一张表中，其他详情字段放在另一张表中，以提升操作效率
+关系：一对一关系，==多用于do单表拆分==，将一张表的基础字段放在一张表中，其他详情字段放在另一张表中，以提升操作效率
 实现：在任意一方加入外键，关联另外一方的主键，并且设置外键为唯一的（UNIQUE）
 
-### 查询
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/6.1.JPG)
 
-合并查询（笛卡尔积，会展示所有组合结果）：
-`select * from employee, dept;`
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/6.JPG)
 
-> 笛卡尔积：两个集合A集合和B集合的所有组合情况（在多表查询时，需要消除无效的笛卡尔积）
+例子：
+
+```mysql
+-- 一对于
+# 创建 用户基本信息表
+create table tb_user(
+	id int auto_increment primary key comment '主键ID',
+	name varchar(10) comment'姓名',
+	age int comment '年龄',
+	gender char(1) comment '1：男，2：女',
+	phone char(11) comment '手机号'
+)comment '用户基本信息表';
+
+# 创建 用户教育信息表
+create table tb_user_edu(
+	id int auto_increment primary key comment '主键ID',
+	degree varchar(20) comment '学历',
+	major varchar(50) comment '专业',
+	primaryschool varchar(50) comment '小学',
+	middleschool varchar(50) comment '中学',
+	university varchar(50) comment '大学',
+	userid int unique comment '用户ID',# unique保证了一对一的关系
+	constraint fk_userid foreign key (userid) REFERENCES
+	tb_user(id)
+)comment '用户教育信息表';
+
+insert into tb_user values
+(null,'黄渤',45,'1','18800001111'),
+(null,'冰冰',35,'2','18800002222'),
+(null,'肖会清',55,'1','18800001234'),
+(null,'马云',50,'1','18800008888');
+insert into tb_user_edu values
+(null,'本科','舞蹈','静安区第一小学','静安区第一中学','北京舞蹈学院',1),
+(null,'硕士','表演','朝阳区第一小学','朝阳区第一中学','北京电影学院',2),
+(null,'本科','日语','杭州市第一小学','杭州市第一中学','杭州师范大学',3),
+(null,'本科','应用数学','阳泉区第一小学','阳泉区第一中学','清华大学',4);
+```
+
+### 多表查询
+
+概述：多表查询指的是从多张表格中查询数据
+
+合并查询（笛卡尔积，会展示==所有组合==结果）：
+`select * from emp, dept;`
+
+> 笛卡尔积：两个集合A集合和B集合的所有组合情况（==在多表查询时，需要消除无效的笛卡尔积==因为我们根本不需要查询all情况，all情况会包含大量的无效且无用的情况）
 
 消除无效笛卡尔积：
-`select * from employee, dept where employee.dept = dept.id;`
+`select * from emp, dept where employee.dept = dept.id;`
+
+例子：（emp和dept表格沿用之前上面学习中所创建的）
+
+```mysql
+SELECT * from emp,dept where emp.dept_id = dept.id;
+# 因为要查询多张表格，因此直接在from 表1,表2,... 
+```
+
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/7.JPG)
 
 ### 内连接查询
 
-内连接查询的是两张表交集的部分
+内连接查询的是两张表==交集==的部分（如上图的==绿色==部分）
 
-隐式内连接：
+隐式内连接：(相比于显式，隐式非常好理解也容易记忆)
 `SELECT 字段列表 FROM 表1, 表2 WHERE 条件 ...;`
 
 显式内连接：
 `SELECT 字段列表 FROM 表1 [ INNER ] JOIN 表2 ON 连接条件 ...;`
 
-显式性能比隐式高
+==注意事项：==
+
+- 显式性能比隐式高（显式的意思，就是关键字里面多了个JOIN字，表示是表1内连了表2的...）
+- 对于显式内连接，INNER关键字是可省略的。
+- 如果我们已经为==表格==起了==别名==的话，那么就==不能够==再使用表格的==原名==来进行sql操作了！
 
 例子：
 
 ```mysql
--- 查询员工姓名，及关联的部门的名称
--- 隐式
-select e.name, d.name from employee as e, dept as d where e.dept = d.id;
--- 显式
-select e.name, d.name from employee as e inner join dept as d on e.dept = d.id;
+-- 需求：查询员工姓名 以及所关联的部门的名称
+-- 隐式内连接形式实现
+SELECT e.`name`,d.`name` as '部门名称' from emp as e,dept as d where e.dept_id = d.id;
+-- 显式内连接形式实现
+SELECT e.`name`,d.`name` as '部门名称' from emp as e inner join dept as d on e.dept_id = d.id;
 ```
 
 ### 外连接查询
 
 左外连接：
-查询左表所有数据，以及两张表交集部分数据
+查询左表所有数据，以及两张表==交集==部分数据（如上图的==蓝色+绿色==部分）
 `SELECT 字段列表 FROM 表1 LEFT [ OUTER ] JOIN 表2 ON 条件 ...;`
 相当于查询表1的所有数据，包含表1和表2交集部分数据
 
 右外连接：
-查询右表所有数据，以及两张表交集部分数据
+查询右表所有数据，以及两张表==交集==部分数据（如上图的==红色+绿色==部分）
 `SELECT 字段列表 FROM 表1 RIGHT [ OUTER ] JOIN 表2 ON 条件 ...;`
+
+==注意事项：==
+
+- 对于外连接，OUTER关键字也是可省略的。
+- 左外连接，可理解为主要展示的是Left左表+左右表交叉的内容
+- 右外连接，可理解为主要展示的是Right右表+左右表交叉的内容
+- 从上面的注意事项可看出，左右外连接主要的区别就是看你主要想展示左表还是右表了，左表就把关键字改为left，右表就把关键字改为right即可！其他按照sql语句的基本语法一一对应着写即可了！
+- 总结：==左右外连接都是可以相互转换的，因此常用其中一个即可！==重要的是要实现你想要的需求而已！
 
 例子：
 
 ```mysql
--- 左
-select e.*, d.name from employee as e left outer join dept as d on e.dept = d.id;
-select d.name, e.* from dept d left outer join emp e on e.dept = d.id;  -- 这条语句与下面的语句效果一样
--- 右
-select d.name, e.* from employee as e right outer join dept as d on e.dept = d.id;
+-- 需求：查询emp表格中的所有数据，和对应的部门信息
+-- 左外连接
+select e.*, d.name as '部门名称'from employee as e left outer join dept as d on e.dept = d.id;
+select d.name as '部门名称', e.* from dept d left outer join emp e on e.dept = d.id;  -- 这条语句与下面的语句效果一样
+-- 右外连接
+select d.name as '部门名称', e.* from employee as e right outer join dept as d on e.dept = d.id;
 ```
 
-左连接可以查询到没有dept的employee，右连接可以查询到没有employee的dept
+注意：左外连接可以查询到没有dept的employee，右外连接可以查询到没有employee的dept
 
 ### 自连接查询
 
-当前表与自身的连接查询，自连接必须使用表别名
+当前表与自身的连接查询（我自己连接join自己来查询数据信息），==自连接==必须==使用表别名==
 
 语法：
 `SELECT 字段列表 FROM 表A 别名A JOIN 表A 别名B ON 条件 ...;`
 
-自连接查询，可以是内连接查询，也可以是外连接查询
+对于，自连接查询，既可以是内连接查询，也可以是外连接查询
 
 例子：
 
 ```mysql
--- 查询员工及其所属领导的名字
-select a.name, b.name from employee a, employee b where a.manager = b.id;
--- 没有领导的也查询出来
-select a.name, b.name from employee a left join employee b on a.manager = b.id;
+-- 需求1：查询员工名字信息 及 其所属领导的名字
+SELECT ea.`name`,eb.`name`as '领导名字' from emp as ea,emp as eb WHERE ea.managerid = eb.id;
+-- 需求2：查询所有员工名字信息 及 其所属领导(没有领导也要查询出来)的名字
+-- 因为要完全包含员工的数据，那么就应该使用外连接方式（因左右外连接都可相互转化，此处随便用一种即可）
+select ea.`name`,eb.`name` as '领导名字' from emp as ea left join emp as eb on ea.managerid = eb.id;
 ```
+
+注意：依然要把自连接查询中当前表格看成是2个一模一样的表格，只不过是要把不同的字段关联不同的字段以便于查询而已！
 
 ### 联合查询 union, union all
 
-把多次查询的结果合并，形成一个新的查询集
+对于union查询，就是把多次查询的结果合并起来，形成一个新的查询结果集。
 
 语法：
 
 ```mysql
 SELECT 字段列表 FROM 表A ...
 UNION [ALL]
-SELECT 字段列表 FROM 表B ...
+SELECT 字段列表 FROM 表B ...;
 ```
 
 #### 注意事项
 
-- UNION ALL 会有重复结果，UNION 不会
+- UNION ALL 会有重复结果(因为是直接将结果进行合并，不考虑重复项的数据)，而UNION 不会
+
 - 联合查询比使用or效率高，不会使索引失效
+
+- 一般推荐使用UNION，而不加ALL关键字！！！这样就会自动合并+去重了！
+
+- ==要十分注意的是！在第一次SELECT后的语句中不需要加分号;，在最后一次SELECT语句后才加;号！==
+
+- 对于联合查询的，多张表，的列数，必须要保持一致，字段类型也需要保持一致！
+
+  ![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/12.JPG)
+
+例子需求：既将 薪资低于9000的员工 又将 年龄大于40岁 的员工全部查询出来
+注意：这是满足2个条件==其一==即可的！
+
+```mysql
+-- 错误示范1：使用单表查询方式
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.salary < 9000 && e.age > 40;
+# 这个是要满足2个条件同时成立的单表查询，error！
+```
+
+![11](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/11.JPG)
+
+```mysql
+-- 错误示范2：在查询语句的中途加分号;
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.salary < 9000; -- 就是这里的分号导致联合语句失效！！！是不是非常的隐蔽呢？？？我差点忽略了这个bug！！！
+union
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.age > 40;
+# 这个是在查询语句的中途加分号;，error！
+```
+
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/10.JPG)
+
+```mysql
+-- 正确示范1：使用多表查询的联合查询方式！（组合起来）
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.salary < 9000
+union all
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.age > 40;
+# 这个是满足2个条件其一成立即可的多表联合查询，right！
+```
+
+![8](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/8.JPG)
+
+```mysql
+# 正确示范2：组合+去重（一起来）
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.salary < 9000
+union
+SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e WHERE e.age > 40;
+```
+
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/9.JPG)
 
 ### 子查询
 
