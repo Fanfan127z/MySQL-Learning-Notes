@@ -321,7 +321,7 @@ LIMIT
 - 设置别名的==AS==关键字是可以省略的。
 - ==尽量少用通配符*号==，因为比如要查询表中all的字段，用\*就不明显！不利于我们程序员查看项目的mysql源码！
 
-去除重复记录：
+对于查询的结果==去除重复==记录：
 `SELECT DISTINCT 字段列表 FROM 表名;`
 
 转义：
@@ -996,7 +996,7 @@ alter table emp drop foreign key fk_emp_dept_id;
 
 ### 多表关系
 
-实际项目开发时，在进行数据库表结构设计时，会根据业务需求及业务模块之间的关系，分析并设计表结构，由于业务之间相互关联，所以各个表结构之间也存在着各种联系，基本上分为三种：
+实际项目开发时，在进行数据库表结构设计时，会根据业务需求及业务模块之间的关系，分析并设计表结构，由于业务之间相互关联，所以各个表结构之间也存在着各种联系，不论业务有多复杂，基本上关系就分为三种：
 
 - 一对多（多对一）
 - 多对多
@@ -1006,7 +1006,7 @@ alter table emp drop foreign key fk_emp_dept_id;
 
 案例：部门与员工
 关系：一个部门对应多个员工，一个员工对应一个部门
-实现：在多的一方建立外键，指向一的一方的主键
+==实现==：在多数据记录的一方建立外键，指向少的一方的主键
 
 ![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/4.JPG)
 
@@ -1126,10 +1126,10 @@ SELECT * from emp,dept where emp.dept_id = dept.id;
 内连接查询的是两张表==交集==的部分（如上图的==绿色==部分）
 
 隐式内连接：(相比于显式，隐式非常好理解也容易记忆)
-`SELECT 字段列表 FROM 表1, 表2 WHERE 条件 ...;`
+`SELECT 字段列表 FROM 表1, 表2 WHERE 查询条件1 and 查询条件2 ...;`
 
 显式内连接：
-`SELECT 字段列表 FROM 表1 [ INNER ] JOIN 表2 ON 连接条件 ...;`
+`SELECT 字段列表 FROM 表1 [ INNER ] JOIN 表2 ON 连接条件 WHERE 查询条件...;`
 
 ==注意事项：==
 
@@ -1266,47 +1266,54 @@ SELECT e.`name`as'员工名字',e.salary as'薪资',e.age '年龄' from emp as e
 
 ![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/9.JPG)
 
-### 子查询
+### 子查询(嵌套查询)
 
-SQL语句中嵌套SELECT语句，称谓嵌套查询，又称子查询。
+在SQL语句中==嵌套SELECT==语句，称为==嵌套查询==，又称==子查询==。
 `SELECT * FROM t1 WHERE column1 = ( SELECT column1 FROM t2);`
+
+**子查询的位置即可以出现在WHERE后，SELECT后，也可以出现在FROM后！**
+
+**子查询内部的语句( SELECT column1 FROM t2)就是子查询！**
+
 **子查询外部的语句可以是 INSERT / UPDATE / DELETE / SELECT 的任何一个**
 
 根据子查询结果可以分为：
 
-- 标量子查询（子查询结果为单个值）
-- 列子查询（子查询结果为一列）
-- 行子查询（子查询结果为一行）
-- 表子查询（子查询结果为多行多列）
+- 标量子查询（子查询的结果为单个值，即一行一列的数据）
+- 列子查询（子查询的结果为只有一列的数据）
+- 行子查询（子查询的结果为只有一行的数据）
+- 表子查询（子查询的结果为多行多列的数据）
 
 根据子查询位置可分为：
 
-- WHERE 之后
-- FROM 之后
-- SELECT 之后
+- WHERE 之后（出现的子查询）
+- FROM 之后（出现的子查询）
+- SELECT 之后（出现的子查询）
 
 #### 标量子查询
 
-子查询返回的结果是单个值（数字、字符串、日期等）。
-常用操作符：- < > > >= < <=
+子查询返回的结果是单个值（数字、字符串、日期等），是最简单的形式。
+常用操作符：= <> > >= < <=
 
 例子：
 
 ```mysql
--- 查询销售部所有员工
-select id from dept where name = '销售部';
--- 根据销售部部门ID，查询员工信息
-select * from employee where dept = 4;
--- 合并（子查询）
-select * from employee where dept = (select id from dept where name = '销售部');
+-- 需求1：查询属于研发部所有员工
+-- 第一步：先查询研发部的所有ID
+SELECT d.id FROM dept as d WHERE d.`name` = '研发部';
+-- 第二部：后根据研发部的ID来 查询员工信息
+SELECT * FROM emp as e WHERE e.dept_id =  (SELECT d.id FROM dept as d WHERE d.`name` = '研发部');
 
--- 查询xxx入职之后的员工信息
-select * from employee where entrydate > (select entrydate from employee where name = 'xxx');
+-- 需求2：查询在小昭之后入职的员工的信息
+-- 第一步：先查询小昭的入职日期信息
+SELECT e.entrydate FROM emp as e WHERE e.`name` = '小昭';
+-- 第二部：后根据指定的入职日期信息来 查询员工信息
+SELECT * FROM emp WHERE entrydate > (SELECT e.entrydate FROM emp as e WHERE e.`name` = '小昭');
 ```
 
 #### 列子查询
 
-返回的结果是一列（可以是多行）。
+返回的结果是只有一列（可以是多行）。
 
 常用操作符：
 
@@ -1314,53 +1321,117 @@ select * from employee where entrydate > (select entrydate from employee where n
 | ------------ | ------------ |
 | IN  | 在指定的集合范围内，多选一  |
 | NOT IN  | 不在指定的集合范围内  |
-| ANY  | 子查询返回列表中，有任意一个满足即可  |
+| ANY  | 在子查询返回列表中，有==任意其中一个满足即可== |
 | SOME  | 与ANY等同，使用SOME的地方都可以使用ANY  |
-| ALL  | 子查询返回列表的所有值都必须满足  |
+| ALL  | 子查询返回列表的==所有值都必须满足== |
 
 例子：
 
 ```mysql
--- 查询销售部和市场部的所有员工信息
-select * from employee where dept in (select id from dept where name = '销售部' or name = '市场部');
--- 查询比财务部所有人工资都高的员工信息
-select * from employee where salary > all(select salary from employee where dept = (select id from dept where name = '财务部'));
--- 查询比研发部任意一人工资高的员工信息
-select * from employee where salary > any (select salary from employee where dept = (select id from dept where name = '研发部'));
+-- 需求1：查询“研发部” 和 “财务部”的所有员工信息 
+-- 第一步：先找到研发部和财务部的部门ID
+(SELECT d.id from dept as d WHERE d.`name` = '研发部' OR d.`name` = '财务部');
+-- 第二步：根据部门ID查询员工的信息
+SELECT * FROM emp as e WHERE e.dept_id IN (SELECT d.id from dept as d WHERE d.`name` = '研发部' OR d.`name` = '财务部');
+
+-- 需求2：查询比“研发部” 所有人工资都高的员工信息
+-- WAY1:
+-- 第一步：先找到研发部的所有人的工资
+SELECT salary from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部');
+-- 第二步：根据上面的信息，查询比研发部所有人工资都高的员工信息
+SELECT * FROM emp WHERE salary > ALL(SELECT salary from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部'));
+-- WAY2:
+SELECT * from emp WHERE salary > (SELECT MAX(salary) from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部'));
+
+-- 需求3：查询比“研发部” 中任意一人工资都高的员工信息
+-- WAY1:
+-- 第一步：先找到研发部的所有人的工资
+SELECT salary from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部');
+-- 第二步：根据上面的信息，查询比研发部任意一人工资高的员工信息
+SELECT * from emp WHERE salary > ANY(SELECT salary from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部'));
+-- WAY2:
+SELECT * from emp WHERE salary > (SELECT MIN(salary) from emp WHERE dept_id = (SELECT id from dept WHERE `name` = '研发部'));
 ```
 
 #### 行子查询
 
-返回的结果是一行（可以是多列）。
-常用操作符：=, <, >, IN, NOT IN
+返回的结果是只有一行（可以是多列）。
+常用操作符：=, <>(!=), IN, NOT IN
 
 例子：
 
 ```mysql
--- 查询与xxx的薪资及直属领导相同的员工信息
-select * from employee where (salary, manager) = (12500, 1);
-select * from employee where (salary, manager) = (select salary, manager from employee where name = 'xxx');
+-- 需求：查询与“杨晓君”的薪资及直属领导相同的员工信息
+-- 第一步：查询与“杨晓君”的薪资及直属领导的信息
+SELECT salary,managerid from emp WHERE `name` = '杨晓君';
+-- 第二步：按照上述信息查询与其相同信息的员工的信息
+SELECT * FROM emp WHERE (salary,managerid) =  (SELECT salary,managerid from emp WHERE `name` = '杨晓君');
 ```
 
 #### 表子查询
 
-返回的结果是多行多列
+返回的结果是多行多列（就类似于一张表格一样）。
 常用操作符：IN
+
+注意：表子查询常用语FROM关键字后，用于返回一个临时的表格以供需求而继续操作。
 
 例子：
 
 ```mysql
--- 查询与xxx1，xxx2的职位和薪资相同的员工
-select * from employee where (job, salary) in (select job, salary from employee where name = 'xxx1' or name = 'xxx2');
--- 查询入职日期是2006-01-01之后的员工，及其部门信息
-select e.*, d.* from (select * from employee where entrydate > '2006-01-01') as e left join dept as d on e.dept = d.id;
+-- 需求1：查询与“杨晓君”与“灭绝”的职位和薪资相同的员工信息
+-- 第一步：查询与“杨晓君”与“灭绝”的职位和薪资
+SELECT job,salary from emp WHERE `name` = '杨晓君' or `name` = '灭绝';
+-- 第二步：查询与“杨晓君”与“灭绝”的职位和薪资相同的员工信息
+SELECT * from emp WHERE (job,salary) IN (SELECT job,salary from emp WHERE `name` = '杨晓君' or `name` = '灭绝');
+
+-- 需求2：查询入职日期是“2006-01-01”之后的员工信息，及其部门信息
+-- 第一步：查询入职日期是“2006-01-01”之后的员工信息
+SELECT * from emp WHERE entrydate > '2006-01-01';
+-- 第二步：根据如上信息，来查询其部门信息
+SELECT e.*, d.* FROM (SELECT * from emp WHERE entrydate > '2006-01-01')as e left outer join dept as d on d.id = e.dept_id;
 ```
+
+#### 多表查询案例：（对前面几种多表查询方式进行加强和巩固学习！）
+
+```mysql
+
+```
+
+
+
+
+
+## ==查询==表格数据记录的==万能模板（三部曲）==：
+
+```
+不论3721，先给老子列出以下三部曲：
+-- 1-需求（是什么？）：...
+-- 2-涉及的表（有哪些？有哪几个？）：...
+-- 3-连接条件（是什么？注意：N张表就必有N-1个连接条件，这样才能够消除笛卡尔积，然后才能筛选出需要的数据记录！）：
+...
+例子：
+-- 需求12：查询所有学生的选课情况，并展示出学生的名字，学号，课程名称(学生和课程的关系就是多对多的关系)。
+-- 涉及的表：student，course，student_course
+-- 连接条件（3张表就有2个连接条件，N张表就有N-1个条件，这样才能够消除笛卡尔积，然后才能筛选出需要的数据记录！）：
+```
+
+==注意：==
+
+①有N张表就必有N-1个连接条件，这样才能够消除笛卡尔积，然后才能筛选出需要的数据记录！）
+
+②有N张表就必有N-1个连接条件，这样才能够消除笛卡尔积，然后才能筛选出需要的数据记录！）
+
+③有N张表就必有N-1个连接条件，这样才能够消除笛卡尔积，然后才能筛选出需要的数据记录！）
+
+④只要是能够满足需求的SQL查询语句，就都是好语句！满足需求CRUD即可！so==很多时候同一需求解法不一==！
 
 ## 事务
 
+### 简介：
+
 事务是一组操作的集合，事务会把所有操作作为一个整体一起向系统提交或撤销操作请求，即这些操作要么同时成功，要么同时失败。
 
-基本操作：
+### 基本操作：
 
 ```mysql
 -- 1. 查询张三账户余额
@@ -1414,7 +1485,7 @@ commit;
 - 隔离性(Isolation)：数据库系统提供的隔离机制，保证事务在不受外部并发操作影响的独立环境下运行
 - 持久性(Durability)：事务一旦提交或回滚，它对数据库中的数据的改变就是永久的
 
-### 并发事务
+### 并发事务问题
 
 | 问题  | 描述  |
 | ------------ | ------------ |
@@ -1424,7 +1495,7 @@ commit;
 
 > 这三个问题的详细演示：https://www.bilibili.com/video/BV1Kr4y1i7ru?p=55cd 
 
-并发事务隔离级别：
+### 事务隔离级别：
 
 | 隔离级别  | 脏读  | 不可重复读  | 幻读  |
 | ------------ | ------------ | ------------ | ------------ |
