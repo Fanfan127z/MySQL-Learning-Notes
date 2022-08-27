@@ -1429,9 +1429,17 @@ SELECT e.*, d.* FROM (SELECT * from emp WHERE entrydate > '2006-01-01')as e left
 
 ### 简介：
 
-事务是一组操作的集合，事务会把所有操作作为一个整体一起向系统提交或撤销操作请求，即这些操作要么同时成功，要么同时失败。
+事务是一组操作的集合，事务会把所  有操作作为一个整体一起向系统提交或撤销操作请求，即这些操作==要么同时成功==，==要么同时失败（失败后要手动回滚数据）==,以保证数据的完整性和一致性！！！（事务的概念其实是有点儿类似于互斥锁的概念的，防止共享资源被同时读写引起异常！）
 
-### 基本操作：
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/13.JPG)
+
+#### 注意事项：
+
+默认情况下MySQL的事务是==自动提交==的，也就是说，当执行一条SQL-DML语句，MySQL会立即隐式地提交事务。（==一条SQL语句就是一个事务==）
+
+因此，当我们在写SQL语句时，若可能遇到会抛出异常的事件，就必须要我们自己手动==开启事务==并==提交事务==，并在抛出异常后手动==回滚事务==,以保证数据的==完整性==和==一致性==！！！！
+
+### 事务的基本操作（==控制事务==的基本操作）：
 
 ```mysql
 -- 1. 查询张三账户余额
@@ -1445,11 +1453,11 @@ update account set money = money + 1000 where name = '李四';
 
 -- 查看事务提交方式
 SELECT @@AUTOCOMMIT;
--- 设置事务提交方式，1为自动提交，0为手动提交，该设置只对当前会话有效
-SET @@AUTOCOMMIT = 0;
--- 提交事务
+-- 设置事务提交方式，1为自动提交，0为手动提交，该设置 只对 当前会话 有效
+SET @@AUTOCOMMIT = 0;# 表示设置当前会话的事务提交方式为手动提交！
+-- 提交事务(的指令)
 COMMIT;
--- 回滚事务
+-- 回滚事务(的指令)
 ROLLBACK;
 
 -- 设置手动提交后上面代码改为：
@@ -1459,7 +1467,7 @@ update account set money = money + 1000 where name = '李四';
 commit;
 ```
 
-操作方式二：
+##### 操作方式二：(我个人认为这是比较好理解的,至少比上面的操作方式一好理解多了！)
 
 开启事务：
 `START TRANSACTION 或 BEGIN TRANSACTION;`
@@ -1476,42 +1484,82 @@ select * from account where name = '张三';
 update account set money = money - 1000 where name = '张三';
 update account set money = money + 1000 where name = '李四';
 commit;
+# 在start transaction; 和 commit;语句之间的SQL语句，要么直接执行完成，要么直接执行失败！
+start transaction;
+select * from account where name = '张三';
+update account set money = money - 1000 where name = '张三';
+update account set money = money + 1000 where name = '李四';
+异常抛出。。。
+rollback;
 ```
 
-### 四大特性ACID
+#### 注意事项：
+
+- COMMIT和ROLLBACK关键字只能二者选其一！！！当事务都正常执行时，选COMMIT,否则，就选ROLLBACK即可了！！！
+
+### 事务的四大特性ACID（==面试比较爱考==）
 
 - 原子性(Atomicity)：事务是不可分割的最小操作但愿，要么全部成功，要么全部失败
 - 一致性(Consistency)：事务完成时，必须使所有数据都保持一致状态
 - 隔离性(Isolation)：数据库系统提供的隔离机制，保证事务在不受外部并发操作影响的独立环境下运行
-- 持久性(Durability)：事务一旦提交或回滚，它对数据库中的数据的改变就是永久的
+- 持久性(Durability)：事务一旦提交commit或回滚rollback，它对数据库中的数据的改变就是永久的(数据库中的数据时存储在磁盘上面的，你提交or回滚的话那么就是持久地修改了磁盘上面的数据了)
 
-### 并发事务问题
+### 并发事务(引发的)问题
+
+所谓并发事务所引发的问题：指的是当==多个事务==在==同时操作（并发操作）==同一个数据库 或者 同一张表格的时候所引发的一些脏读、不可重复读、幻读等的问题。
+
+常见的并发事务引发的问题主要有以下三种：
 
 | 问题  | 描述  |
 | ------------ | ------------ |
-| 脏读  | 一个事务读到另一个事务还没提交的数据  |
-| 不可重复读  | 一个事务先后读取同一条记录，但两次读取的数据不同  |
-| 幻读  | 一个事务按照条件查询数据时，没有对应的数据行，但是再插入数据时，又发现这行数据已经存在  |
+| 脏读  | 一个事务读到另一个事务修改/更新了的但还没提交的数据！ |
+| 不可重复读  | 一个事务先后读取同一条记录，但多次读取后发现读取到的数据有不同！ |
+| 幻读  | 一个事务按照条件查询数据时，没有对应的数据行，但是再插入数据时，又发现这行数据已经存在（我查询的时候明明没有该数据记录，但是我想插入该对应数据行的数据记录时又显示是重复了的！！！这就叫做是幻读！） |
 
 > 这三个问题的详细演示：https://www.bilibili.com/video/BV1Kr4y1i7ru?p=55cd 
 
-### 事务隔离级别：
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/14.JPG)
+
+![15](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/15.JPG)
+
+
+
+![16](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/16.JPG)
+
+
+
+![17](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/17.JPG)
+
+### 事务隔离级别：就是用来==deal事务的并发执行问题==的
 
 | 隔离级别  | 脏读  | 不可重复读  | 幻读  |
 | ------------ | ------------ | ------------ | ------------ |
-| Read uncommitted  | √  | √  | √  |
-| Read committed  | ×  | √  | √  |
-| Repeatable Read(默认)  | ×  | ×  | √  |
-| Serializable  | ×  | ×  | ×  |
+| Read uncommitted（读未提交） | √  | √  | √  |
+| Read committed（读已提交，是Oracle的默认隔离级别） | ×  | √  | √  |
+| Repeatable Read（是MySQL的默认隔离级别，可重复读） | ×  | ×  | √  |
+| Serializable（可串行化） | ×  | ×  | ×  |
 
-- √表示在当前隔离级别下该问题会出现
-- Serializable 性能最低；Read uncommitted 性能最高，数据安全性最差
+- √：表示在当前隔离级别下该问题==会出现==
+- Serializable 性能最低（但是任何事务并发执行问题都可以deal）；Read uncommitted 性能最高，数据安全性最差
 
 查看事务隔离级别：
 `SELECT @@TRANSACTION_ISOLATION;`
 设置事务隔离级别：
 `SET [ SESSION | GLOBAL ] TRANSACTION ISOLATION LEVEL {READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE };`
-SESSION 是会话级别，表示只针对当前会话有效，GLOBAL 表示对所有会话有效
+
+#### 注意事项：
+
+①==SESSION==是会话级别，表示==只针对当前会话窗口有效==，==GLOBAL== 表示==针对所有会话窗口都有效==
+
+②SELECT @@中的两个==@==符号就表示的是查看==当前系统==的==变量==信息。
+
+③Serializable这种隔离级别使得事务与事务之间串行执行！！！只有前面一个事务A执行完毕后，后面的事务B才能继续执行！否则的话事务B以及后续事务都只能够阻塞等待前面的事务执行完成！！！
+
+④事务隔离级别越高，则数据越安全，但是性能越低。
+
+事务隔离级别越低，则数据越不安全，但是性能越高。
+
+我们在选择事务的隔离级别时，一般都需要考虑数据的安全性与系统的性能。所以我们在使用MYSQL时一般都只是使用默认的隔离级别（即是：Repeatable read）
 
 # 进阶篇（原理）
 
