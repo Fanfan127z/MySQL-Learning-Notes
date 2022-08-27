@@ -526,6 +526,12 @@ SELECT * FROM employee WHERE gender = '男' and (age BETWEEN 20 and 40 ) ORDER B
 -- 为了你的sql语句更可读，加个括号()是ok的！没问题的！
 ```
 
+##### 补充：正则表达式
+
+![112](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/112.png)
+
+
+
 ### DCL
 
 Data Control Language,数据控制语言，用来：
@@ -1565,10 +1571,12 @@ rollback;
 
 ## 存储引擎
 
-MySQL体系结构：
+### MySQL体系结构
 
 ![结构图](https://dhc.pythonanywhere.com/media/editor/MySQL体系结构_20220315034329549927.png "结构图")
 ![层级描述](https://dhc.pythonanywhere.com/media/editor/MySQL体系结构层级含义_20220315034359342837.png "层级描述")
+
+### 存储引擎简介
 
 存储引擎就是存储数据、建立索引、更新/查询数据等技术的实现方式。存储引擎是基于表而不是基于库的，所以存储引擎也可以被称为表引擎。
 默认存储引擎是InnoDB。
@@ -1586,7 +1594,7 @@ CREATE TABLE 表名(
 show engines;
 ```
 
-### InnoDB
+#### InnoDB
 
 InnoDB 是一种兼顾高可靠性和高性能的通用存储引擎，在 MySQL 5.5 之后，InnoDB 是默认的 MySQL 引擎。
 
@@ -1614,7 +1622,7 @@ InnoDB 是一种兼顾高可靠性和高性能的通用存储引擎，在 MySQL 
 InnoDB 逻辑存储结构：
 ![InnoDB逻辑存储结构](https://dhc.pythonanywhere.com/media/editor/逻辑存储结构_20220316030616590001.png "InnoDB逻辑存储结构")
 
-### MyISAM
+#### MyISAM
 
 MyISAM 是 MySQL 早期的默认存储引擎。
 
@@ -1630,7 +1638,7 @@ MyISAM 是 MySQL 早期的默认存储引擎。
 - xxx.MYD: 存储数据
 - xxx.MYI: 存储索引
 
-### Memory
+#### Memory
 
 Memory 引擎的表数据是存储在内存中的，受硬件问题、断电问题的影响，只能将这些表作为临时表或缓存使用。
 
@@ -1720,7 +1728,7 @@ EXPLAIN 各字段含义：
 - rows：MySQL认为必须要执行的行数，在InnoDB引擎的表中，是一个估计值，可能并不总是准确的
 - filtered：表示返回结果的行数占需读取行数的百分比，filtered的值越大越好
 
-## 索引
+## 索引（进阶篇中作为重要的知识点）
 
 索引是帮助 MySQL **高效获取数据**的**数据结构（有序）**。在数据之外，数据库系统还维护着满足特定查找算法的数据结构，这些数据结构以某种方式引用（指向）数据，这样就可以在这些数据结构上实现高级查询算法，这种数据结构就是索引。
 
@@ -2081,6 +2089,30 @@ InnoDB 的行锁是针对索引加的锁，不是针对记录加的锁，并且�
 如以下两条语句：
 `update student set no = '123' where id = 1;`，这句由于id有主键索引，所以只会锁这一行；
 `update student set no = '123' where name = 'test';`，这句由于name没有索引，所以会把整张表都锁住进行数据更新，解决方法是给name字段添加索引
+
+
+
+
+
+## 视图/存储过程/触发器
+
+
+
+## 锁
+
+
+
+## InnoDB引擎
+
+
+
+## MySQL管理
+
+
+
+
+
+
 
 # 数据类型
 
