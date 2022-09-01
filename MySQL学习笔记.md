@@ -1966,6 +1966,7 @@ select * from user where name = 'Arm';# 需要先在二级索引中找与name字
 - FULLTEXT：表示创建的是**全文索引**。
 - 一个索引可以关联多个字段，若**只关联一个字段**，则称之为**单列索引**；若关联了多个字段，则称之为**组合索引（联合索引）**。
 - 在创建联合索引时，**字段填入的顺序**是**有讲究的！**后面在讲**索引的使用**时会提及到！
+- **创建索引**时，索引的**名字规范**：**idx_tableName_字段Name**（这是良好的开发规范，应当学习起来！）
 
 **查看索引：**
 `SHOW INDEX FROM table_name;`
@@ -2170,24 +2171,88 @@ EXPLAIN 各字段含义：
 
 ### 索引使用规则(如何正确使用索引)
 
-#### 最左前缀法则
+#### 验证索引效率
 
-如果索引关联了多列（联合索引），要遵守最左前缀法则，最左前缀法则指的是查询从索引的最左列开始，并且不跳过索引中的列。
-如果跳跃某一列，索引将部分失效（后面的字段索引失效）。
+在有大量数据记录时，给**某字段**增加**索引**后，的**查询效率**会**高出非常非常非常多倍**的！！！
 
-联合索引中，出现范围查询（<, >），范围查询右侧的列索引失效。可以用>=或者<=来规避索引失效问题。
+![image-20220901150505197](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901150505197.png)
 
-#### 索引失效情况
+![image-20220901150601389](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901150601389.png)
 
-1. 在索引列上进行运算操作，索引将失效。如：`explain select * from tb_user where substring(phone, 10, 2) = '15';`
-2. 字符串类型字段使用时，不加引号，索引将失效。如：`explain select * from tb_user where phone = 17799990015;`，此处phone的值没有加引号
-3. 模糊查询中，如果仅仅是尾部模糊匹配，索引不会是失效；如果是头部模糊匹配，索引失效。如：`explain select * from tb_user where profession like '%工程';`，前后都有 % 也会失效。
+![image-20220901150634659](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901150634659.png)
+
+![image-20220901150714078](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901150714078.png)
+
+
+
+#### 最左前缀法则（注意针对联合索引）
+
+如果索引关联了多列|多个字段（即：联合索引），就要遵守最左前缀法则，**最左前缀法则**指的是查询**必须从索引的==最左列==**开始，并且不跳过索引中的列，若跳过了，则索引失效，就没法借助索引这种数据结构来高效查询数据记录了。
+如果跳跃某一列，**索引将部分失效（即：这一列后面的字段索引失效）**。
+
+#### 范围查询
+
+联合索引中，若出现范围查询（**<**小于, **>**大于），**范围查询右侧的列索引失效**。（**在业务需要允许的case下**）可尽量用**>=**或者**<=**来规避索引失效问题。（而少去使用**<**小于 或  **>**大于）
+
+例子演示：
+
+具体可以看对应小节的视频：**https://www.bilibili.com/video/BV1Kr4y1i7ru?p=80&vd_source=b050ab0adaffa51f5ad24d77efa40057**
+
+```mysql
+
+```
+
+
+
+#### ==索引失效==情况（我们==尽量规避==这些==索引失效case==以提高使用SQL-DML语句的效率！）
+
+1. 在索引列上**进行运算操作**，**索引将失效**。如：`explain select * from tb_user where substring(phone, 10, 2) = '15';`查询性能将降低。
+
+2. 字符串类型字段使用时，**不加引号**，**索引将失效**。如：`explain select * from tb_user where phone = 17799990015;`，此处phone的值没有加引号
+
+3. 模糊查询中，如果仅仅是尾部模糊匹配，索引不会是失效；如果是头部模糊匹配，索引失效；若前后都有 %模糊匹配的话 也会失效。如：`explain select * from tb_user where profession like '%工程';`
+
+   ```mysql
+   EXPLAIN SELECT * from tb_user3 WHERE profession LIKE '软件%';#　索引不会失效！
+   EXPLAIN SELECT * from tb_user3 WHERE profession LIKE '%工程';#　索引失效！
+   EXPLAIN SELECT * from tb_user3 WHERE profession LIKE '%工%';#　索引失效！
+   EXPLAIN SELECT * from tb_user3 WHERE profession LIKE '%工_';#　索引失效！
+   # 结论：在大数据量时，必须要规避掉 头部模糊查询 的SQL语句写法，因为这样的话会导致索引失效（if有的话），从而只能进行全表扫描查询，性能极其低下！
+   ```
+
 4. 用 or 分割开的条件，如果 or 其中一个条件的列没有索引，那么涉及的索引都不会被用到。
-5. 如果 MySQL 评估使用索引比全表更慢，则不使用索引。
+
+   ```mysql
+   EXPLAIN SELECT * FROM tb_user3 WHERE age = 23 or gender = 1; 
+   # age和gender都没单独建立索引，so该SQL语句只能用全表查询而无法使用索引do高效的查询，效率低下！
+   EXPLAIN SELECT * FROM tb_user3 WHERE profession = '软件工程' or gender = 1; 
+   # gender没建立索引，so该SQL语句只能用全表查询而无法使用索引do高效的查询，效率低下！
+   EXPLAIN SELECT * FROM tb_user3 WHERE phone = '17799990000' or age = 23;
+   # phone有单独建立索引，但age没建立索引，so该SQL语句只能用全表查询而无法使用索引do高效的查询，效率低下！
+   EXPLAIN SELECT * FROM tb_user3 WHERE profession = '软件工程' or name = '吕布'; 
+   # profession联合索引生效，且name有单独建立的索引，so该SQL语句用索引do高效的查询，效率高！
+   ```
+
+   
+
+5. 如果 MySQL 的优化器评估后，认为**若使用索引比全表扫描更慢**的话，则**不使用索引**。
+
+   ```mysql
+   EXPLAIN SELECT * from tb_user3 WHERE phone >= '17799990005';# 走了索引来查询数据
+   EXPLAIN SELECT * from tb_user3 WHERE phone >= '17799990000';# 走了全表扫描来查询数据
+   ```
+
+   ![image-20220901163908064](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901163908064.png)
+
+   ![44](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/44.JPG)
+
+6. 若索引**最左边开头的列不存在**，则**索引也会失效**。
 
 #### SQL 提示
 
-是优化数据库的一个重要手段，简单来说，就是在SQL语句中加入一些人为的提示来达到优化操作的目的。
+是优化数据库的一个重要手段，简单来说，就是在SQL语句中==加入==一些==人为的提示==来达到优化操作的目的。
+
+注意：SQL的提示语句必须要==跟在WHERE关键字之前，FROM之后==！
 
 例如，使用索引：
 `explain select * from tb_user use index(idx_user_pro) where profession="软件工程";`
@@ -2196,24 +2261,73 @@ EXPLAIN 各字段含义：
 必须使用哪个索引：
 `explain select * from tb_user force index(idx_user_pro) where profession="软件工程";`
 
-use 是建议，实际使用哪个索引 MySQL 还会自己权衡运行速度去更改，force就是无论如何都强制使用该索引。
+```mysql
+# SQL的提示关键字只介绍以下3个：
+use index(指定的索引名称);	  # 告诉MySQL数据库，建议其使用该索引（来do SQL的DML操作）
+  		  	 			   # 但实际使用哪个索引 MySQL 还是会根据MySQL自己的优化器去权衡运行速度去更改的。
+ignore index(指定的索引名称);# 告诉MySQL数据库，不使用哪个索引（来do SQL的DML操作）。
+force index(指定的索引名称); # 告诉MySQL数据库，就是无论如何你都给我强制使用该索引（来do SQL的DML操作）。
+```
 
-#### 覆盖索引&回表查询
+例子：
 
-尽量使用覆盖索引（查询使用了索引，并且需要返回的列，在该索引中已经全部能找到），减少 select *。
+![image-20220901170018744](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901170018744.png)
+
+<img src="C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/46.JPG" alt="46" style="zoom:80%;" />
+
+<img src="C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901170140869.png" alt="image-20220901170140869" style="zoom:80%;" />
+
+<img src="C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901170245106.png" alt="image-20220901170245106" style="zoom:80%;" />
+
+#### ==覆盖索引==&==回表查询==
+
+覆盖索引：查询的SQL语句中使用了索引，并且需要返回的列在该索引中已经==全部能找到==。
+
+推荐==尽量使用覆盖索引==，减少使用 select *。（即：尽量避免在select关键字后使用\*关键字）
 
 explain 中 extra 字段含义：
-`using index condition`：查找使用了索引，但是需要回表查询数据
-`using where; using index;`：查找使用了索引，但是需要的数据都在索引列中能找到，所以不需要回表查询
+
+![image-20220901172455049](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901172455049.png)
+
+`using index condition`：查找使用了索引，但是需要回表查询数据（==此时效率低==！）
+`using where; using index;`：查找使用了索引，但是需要的数据都在索引列中能找到，所以不需要回表查询（==此时效率高==！）
+
+**注意**：所谓的**回表查询**，其实就是先去二级索引处找到对应的主键索引（聚集索引），然后再在聚集索引中找到叶子节点中存储的行数据以查询相应字段的数据记录！（这在前面学习**聚集索引**时有笔记记录，可回看！）
 
 如果在聚集索引中直接能找到对应的行，则直接返回行数据，只需要一次查询，哪怕是select \*；如果在辅助索引中找聚集索引，如`select id, name from xxx where name='xxx';`，也只需要通过辅助索引(name)查找到对应的id，返回name和name索引对应的id即可，只需要一次查询；如果是通过辅助索引查找其他字段，则需要回表查询，如`select id, name, gender from xxx where name='xxx';`
 
-所以尽量不要用`select *`，容易出现回表查询，降低效率，除非有联合索引包含了所有字段
+==所以尽量不要用`select *`，容易出现回表查询，降低效率，除非有联合索引包含了所有字段==
 
-面试题：一张表，有四个字段（id, username, password, status），由于数据量大，需要对以下SQL语句进行优化，该如何进行才是最优方案：
+例子1：（可自行脑补查询的详细过程，非常简单的哈~）
+
+<img src="C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220901173906402.png" alt="image-20220901173906402" style="zoom:80%;" />
+
+例子2：
+
+```mysql
+EXPLAIN SELECT id,profession,age,status,name from tb_user3 WHERE profession = '软件工程' and age = 23 and status = '6';
+/*
+解释：
+	因为我们已事先建立了二级索引:idx_user_pro_age_status ，聚集（主键）索引:PRIMARY (id)
+	而 该索引结构已经包含了字段profession,age,status了，并且该索引结构的叶子节点处也已经包含了对应的主键索引字段id   	  了， 刚好囊括我们要查询的就是这四个字段，因此无需再do 回表查询去聚集索引处找其叶子节点的行数据了！！！
+*/
+EXPLAIN SELECT id,profession,age,status,name from tb_user3 WHERE profession = '软件工程' and age = 23 and status = '6';
+/*
+解释：
+	因为我们已事先建立了二级索引:idx_user_pro_age_status ，聚集（主键）索引:PRIMARY (id)
+	而 该索引结构已经包含了字段profession,age,status了，但是，并没包含字段name（即没完全囊括所要查询并返回的字段），	 因此就必须要通过 回表查询 去 聚集索引 根据在二级索引中找到的id值 去 其叶子节点的对应行数据中找到name字段对应的数据	记录才行！其效率是不高的！
+*/
+
+/*	结论：
+	1-所谓的 覆盖索引，其实也就是说，当我要 查询并返回的字段数据 在我当前的这个聚集索引 or 二级索引 的结构中已经囊括了	  的话，就称该索引为覆盖索引，可直接返回给查询结果，其效率是高的（无需回表查询，一次遍历索引的B+Tree扫描完成查询操		作）！
+	2-尽量不要使用select* 了，因为极其容易出现回表查询，效率低！（除非有联合索引包含了所有字段）
+*/
+```
+
+**面试题**：一张表，有四个字段（id, username, password, status），由于数据量大，需要对以下SQL语句进行优化，该如何进行才是最优方案：
 `select id, username, password from tb_user where username='itcast';`
 
-解：给username和password字段建立联合索引，则不需要回表查询，直接覆盖索引
+解：给username和password字段建立联合索引，则不需要回表查询，直接就是覆盖索引返回查询的结果了！
 
 #### 前缀索引
 
