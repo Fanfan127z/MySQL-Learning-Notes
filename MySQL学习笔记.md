@@ -1571,7 +1571,7 @@ commit;
 ##### 操作方式二：(我个人认为这是比较好理解的,至少比上面的操作方式一好理解多了！)
 
 开启事务：
-`START TRANSACTION 或 BEGIN TRANSACTION;`
+`START TRANSACTION; 或 BEGIN TRANSACTION;`
 提交事务：
 `COMMIT;`
 回滚事务：
@@ -2343,7 +2343,7 @@ EXPLAIN SELECT id,profession,age,status,name from tb_user3 WHERE profession = '�
 
 **注意**：==对于索引字段很长 或 是大文本 的索引字段，建立长度为n的前缀索引是比较合理的，这大大节约了索引空间（降低了索引的体积），且提高了索引的使用效率！==）
 
-前缀长度：可以根据**索引字段**的**选择性**来决定，而**选择性**是指**不重复**的**索引值（基数）**和数据表的**记录总数**的**比值**，索引选择性越高则查询效率越高，**唯一索引**的**选择性**是1。其中，1就是**最好的索引选择性的值**，性能也是最好的，即表明当选择长度为n的前缀来构建索引时，索引字段的区分度已经最高了！。
+**前缀长度n**：可以根据**索引字段**的**选择性**来决定，而**选择性**是指**不重复**的**索引值（基数）**和数据表的**记录总数**的**比值**，索引选择性越高则查询效率越高，**唯一索引**的**选择性**是1。其中，1就是**最好的索引选择性的值**，性能也是最好的，即表明当选择长度为n的前缀来构建索引时，索引字段的区分度已经最高了！。
 
 ```mysql
 # 求 选择性 的公式：
@@ -2412,70 +2412,146 @@ show index 里面的**sub_part**关键字也可以看到所截取的字符串的
 
 ## SQL 优化
 
-### 插入数据
+### 插入数据 (时的SQL优化)
 
-普通插入：
+**普通插入：**
 
-1. 采用批量插入（一次插入的数据不建议超过1000条）
-2. 手动提交事务
-3. 主键顺序插入
+1. **采用批量插入**
 
-大批量插入：
-如果一次性需要插入大批量数据，使用insert语句插入性能较低，此时可以使用MySQL数据库提供的load指令插入。
+   （一条插入SQL语句时，一次插入的数据不建议超过1000条,500-1000条是比较合适的）
+
+   `insert into tb_user3 values(1,'Tom'),(2,'Cat'),(3,'Jerry')...;`
+
+2. **手动提交事务**
+
+   默认case下，MYSQL是启动自动提交事务操作的，这样你每写好一条SQL语句并执行后就会提交一次事务，这样频繁地提交事务的操作是不好的。
+
+   `-- 查看事务提交方式
+   SELECT @@AUTOCOMMIT;
+   -- 设置事务提交方式，1为自动提交，0为手动提交，该设置 只对 当前会话 有效
+   SET @@AUTOCOMMIT = 0;# 表示设置当前会话的事务提交方式为手动提交！
+   start transaction;# 在start transaction; 和 commit;语句之间的SQL语句，要么直接执行完成，要么直接执行失败！
+   insert into tb_user3 values(1,'Tom'),(2,'Cat'),(3,'Jerry');
+   insert into tb_user3 values(4,'Tom'),(5,'Cat'),(6,'Jerry');
+   insert into tb_user3 values(7,'Tom'),(8,'Cat'),(9,'Jerry');
+   commit;-- 提交事务(的指令)`
+
+3. **主键顺序插入**
+
+主键乱序插入：8 1 9 21 88 2 4 15 89 5 7 3  <=> 不好！
+主键顺序插入：1 2 3 4  5  6 7 8  9  15 21 88 89  <=> 好！
+
+==主键顺序插入性能高于乱序插入！==（后面讲解主键优化的时候会讲why！）
+
+**大批量插入**：
+如果需要一次性插入大批量数据，使用insert语句插入性能较低，此时可以使用MySQL数据库提供的load指令插入。
 
 ```mysql
-# 客户端连接服务端时，加上参数 --local-infile（这一行在bash/cmd界面输入）
-mysql --local-infile -u root -p
+# 客户端连接服务端时，加上参数 --local-infile（这一行在bash/cmd界面输入，表示 客户端 此时 需要加载本地文件）
+mysql --local-infile -u username -p
 # 设置全局参数local_infile为1，开启从本地加载文件导入数据的开关
 set global local_infile = 1;
 select @@local_infile;
 # 执行load指令将准备好的数据，加载到表结构中
-load data local infile '/root/sql1.log' into table 'tb_user' fields terminated by ',' lines terminated by '\n';
+load data local infile '/home/linzhuofan/xxx.sql' into table 'tb_user' fields terminated by ',' lines terminated by '\n';
+# 其中，','表示每个字段之间用,号分割；而'\n'则表示每一行数据之间用换行符\n来分割；
+# 其中，'/home/linzhuofan/xxx.sql'表示 需要被load的sql文本的绝对路径
+# 其中，'tb_user'表示 你要load的数据到哪儿个表中的表格！
 ```
+
+![image-20220903230559256](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220903230559256.png)
+
+
+
+```mysql
+# 登录上mysql服务器，然后在itheima这个数据库中添加如下表格：
+CREATE TABLE `tb_user4` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(50) NOT NULL,
+  `password` VARCHAR(50) NOT NULL,
+  `name` VARCHAR(20) NOT NULL,
+  `birthday` DATE DEFAULT NULL,
+  `sex` CHAR(1) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_user_username` (`username`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8 ;
+# 然后使用load来加载大量数据：（前提是你把这份数据弄到你的服务器对应的路径上！我这里是/home/linzhuofan/load...）
+```
+
+![image-20220903232434410](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220903232434410.png)
 
 ### 主键优化
 
-数据组织方式：在InnoDB存储引擎中，表数据都是根据主键顺序组织存放的，这种存储方式的表称为索引组织表（Index organized table, IOT）
+数据组织方式：在**InnoDB**存储引擎中，表数据都是根据主键**顺序**组织存放的，这种存储方式的表称为**索引组织表**（Index organized table, IOT）
 
-页分裂：页可以为空，也可以填充一般，也可以填充100%，每个页包含了2-N行数据（如果一行数据过大，会行溢出），根据主键排列。
-页合并：当删除一行记录时，实际上记录并没有被物理删除，只是记录被标记（flaged）为删除并且它的空间变得允许被其他记录声明使用。当页中删除的记录到达 MERGE_THRESHOLD（默认为页的50%），InnoDB会开始寻找最靠近的页（前后）看看是否可以将这两个页合并以优化空间使用。
+若主键使用**乱序**插入的话，可能会造成**页分裂**的现象。而**页分裂**现象往往也会带着**页合并**现象。
 
-MERGE_THRESHOLD：合并页的阈值，可以自己设置，在创建表或创建索引时指定
+**页分裂**：页可以为空，也可以填充一般，也可以填充100%，每个页包含了2-N行数据（如果一行数据过大，会行溢出），根据主键排列。
+**页合并**：当删除一行记录时，实际上记录并没有被物理删除，只是记录被标记（flaged）为删除并且它的空间变得允许被其他记录声明使用。当页中删除的记录到达 MERGE_THRESHOLD（默认为页的50%），InnoDB会开始寻找最靠近的页（前或后）看看是否可以将这两个页合并以优化空间使用。
+
+MERGE_THRESHOLD：是合并页的阈值，可以自己设置，在创建表或创建索引时指定
 
 > 文字说明不够清晰明了，具体可以看视频里的PPT演示过程：https://www.bilibili.com/video/BV1Kr4y1i7ru?p=90
 
-主键设计原则：
+**主键设计原则**：
 
-- 满足业务需求的情况下，尽量降低主键的长度
-- 插入数据时，尽量选择顺序插入，选择使用 AUTO_INCREMENT 自增主键
-- 尽量不要使用 UUID 做主键或者是其他的自然主键，如身份证号
-- 业务操作时，避免对主键的修改
+- 满足业务需求的情况下，尽量降低主键的长度（二级索引的叶子节点存储的是主键，若主键长度越大，则二级索引的叶子节点个数越多，此时遍历二级索引时耗时会变长，且检索数据时会耗费大量的磁盘IO）
+- 插入数据时，尽量选择**顺序**插入，选择使用 **AUTO_INCREMENT** 自增主键
+- 尽量不要使用 UUID 做主键或者是其他的自然主键，如身份证号（本身数据长度就大，so检索数据时会耗费大量的磁盘IO）
+- 业务操作时，避免对主键的修改（因为若修改了主键，二级索引的数据结构会变化，这样代价很大！）
 
-### order by优化
+### order by优化（排序操作的优化）
 
-1. Using filesort：通过表的索引或全表扫描，读取满足条件的数据行，然后在排序缓冲区 sort buffer 中完成排序操作，所有不是通过索引直接返回排序结果的排序都叫 FileSort 排序
-2. Using index：通过有序索引顺序扫描直接返回有序数据，这种情况即为 using index，不需要额外排序，操作效率高
+例子：
 
-如果order by字段全部使用升序排序或者降序排序，则都会走索引，但是如果一个字段升序排序，另一个字段降序排序，则不会走索引，explain的extra信息显示的是`Using index, Using filesort`，如果要优化掉Using filesort，则需要另外再创建一个索引，如：`create index idx_user_age_phone_ad on tb_user(age asc, phone desc);`，此时使用`select id, age, phone from tb_user order by age asc, phone desc;`会全部走索引
+![image-20220904165049533](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904165049533.png)
+
+![image-20220904165745212](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904165745212.png)
+
+在MYSQL中，有两种排序方式：
+
+1. **Using filesort**：通过表的索引或全表扫描，读取满足条件的数据行，然后在排序缓冲区 sort buffer 中完成排序操作，所有不是通过索引直接返回排序结果的排序都叫 FileSort 排序
+2. **Using index**：通过有序索引顺序扫描直接返回有序数据，这种情况即为 using index，不需要额外排序，操作效率高
+
+如果order by字段**全部使用升序排序**或者**降序排序**，则**都会走索引**，但是如果一个字段升序排序，另一个字段降序排序，或反过来，则不会走索引，explain的extra信息显示的是`Using index, Using filesort`，如果要优化掉Using filesort，则需要另外再创建一个索引，如：`create index idx_user_age_phone_ad on tb_user(age asc, phone desc);`，此时使用`select id, age, phone from tb_user order by age asc, phone desc;`会全部走索引
 
 总结：
 
 - 根据排序字段建立合适的索引，多字段排序时，也遵循最左前缀法则
-- 尽量使用覆盖索引
+
+- 涉及到排序操作时，SQL的执行过程尽量优化为using index的。（通过EXPLAIN关键字可查看SQL语句的执行计划）
+
+- 尽量使用覆盖索引（查询效率高）
+
 - 多字段排序，一个升序一个降序，此时需要注意联合索引在创建时的规则（ASC/DESC）
+
 - 如果不可避免出现filesort，大数据量排序时，可以适当增大排序缓冲区大小 sort_buffer_size（默认256k）
 
-### group by优化
+  ![image-20220904165947534](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904165947534.png)
 
-- 在分组操作时，可以通过索引来提高效率
-- 分组操作时，索引的使用也是满足最左前缀法则的
+### group by优化（分组操作的优化）
 
-如索引为`idx_user_pro_age_stat`，则句式可以是`select ... where profession order by age`，这样也符合最左前缀法则
+- 在分组操作时，可以通过（建立适当的）索引来提高效率
+- 分组操作时，索引的使用也是要满足最左前缀法则的
 
-### limit优化
+特殊case：如索引为`idx_user_pro_age_stat`，则这个SQL语句`EXPLAIN SELECT profession,age,count(*) from tb_user3 WHERE profession = '软件工程' GROUP BY age;`，这样也是符合最左前缀法则的。
+
+![image-20220904215236461](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904215236461.png)
+
+其中，using temporary 是用到了临时表，性能是比较低的！
+
+![image-20220904215745113](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904215745113.png)
+
+using index 则性能比较高！
+
+![image-20220904215706420](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904215706420.png)
+
+
+
+### limit优化（分页查询的优化）
 
 常见的问题如`limit 2000000, 10`，此时需要 MySQL 排序前2000000条记录，但仅仅返回2000000 - 2000010的记录，其他记录丢弃，查询排序的代价非常大。
-优化方案：一般分页查询时，通过创建覆盖索引能够比较好地提高性能，可以通过覆盖索引加子查询形式进行优化
+优化方案：一般分页查询时，通过创建**覆盖索引**能够比较好地提高性能，可以通过覆盖索引加子查询形式进行优化
 
 例如：
 
@@ -2487,18 +2563,20 @@ select id from tb_sku order by id limit 9000000, 10;
 -- 下面的语句是错误的，因为 MySQL 不支持 in 里面使用 limit
 -- select * from tb_sku where id in (select id from tb_sku order by id limit 9000000, 10);
 -- 通过连表查询即可实现第一句的效果，并且能达到第二句的速度
-select * from tb_sku as s, (select id from tb_sku order by id limit 9000000, 10) as a where s.id = a.id;
+select s.* from tb_sku as s, (select id from tb_sku order by id limit 9000000, 10) as a where s.id = a.id;
 ```
 
 ### count优化
 
-MyISAM 引擎把一个表的总行数存在了磁盘上，因此执行 count(\*) 的时候会直接返回这个数，效率很高（前提是不适用where）；
+在大数据量case下count操作是比较耗时的，这是由存储引擎来决定的！
+
+MyISAM 引擎把一个表的总行数存在了磁盘上，因此执行 count(\*) 的时候会直接返回这个数，效率很高（前提该查询语句没使用where）；
 InnoDB 在执行 count(\*) 时，需要把数据一行一行地从引擎里面读出来，然后累计计数。
 优化方案：自己计数，如创建key-value表存储在内存或硬盘，或者是用redis
 
-count的几种用法：
+count的几种用法：(count本身是一个聚合函数，是用来求取符合条件的总数据量的)
 
-- 如果count函数的参数（count里面写的那个字段）不是NULL（字段值不为NULL），累计值就加一，最后返回累计值
+- 如果count函数的参数（count里面写的那个字段）不是NULL（字段值不为NULL），累计值就加一，否则不加一，最后返回累计值
 - 用法：count(\*)、count(主键)、count(字段)、count(1)
 - count(主键)跟count(\*)一样，因为主键不能为空；count(字段)只计算字段值不为NULL的行；count(1)引擎会为每行添加一个1，然后就count这个1，返回结果也跟count(\*)一样；count(null)返回0
 
@@ -2509,23 +2587,33 @@ count的几种用法：
 - count(1)：InnoDB 引擎遍历整张表，但不取值。服务层对于返回的每一层，放一个数字 1 进去，直接按行进行累加
 - count(\*)：InnoDB 引擎并不会把全部字段取出来，而是专门做了优化，不取值，服务层直接按行进行累加
 
-按效率排序：count(字段) < count(主键) < count(1) < count(\*)，所以尽量使用 count(\*)
+按效率排序：count(字段) < count(主键) < count(1) < count(\*)，所以当求取总数据记录数时应**尽量使用 count(\*)**
 
 ### update优化（避免行锁升级为表锁）
 
-InnoDB 的行锁是针对索引加的锁，不是针对记录加的锁，并且该索引不能失效，否则会从行锁升级为表锁。
+**InnoDB 的行锁**是针对**索引**加的锁，而不是针对记录加的锁，并且该索引不能失效，否则会从行锁升级为表锁。
+
+==so我们在do Update操作时，尽量对有索引的字段 或 主键 进行Update！==这样的性能才好，效率才高！
+
+若根据没有索引的字段来update某字段的数据，则行锁会升级为表锁，整张表都会锁住，你更新任一行数据都会锁住另一个MYSQL客户端更新该表其他数据的操作！（可以自己试试，按照B站视频里面的操作弄一次有索引的update和没有索引的update）也即一旦用没有索引的字段来doUpdate操作时，就会锁住整张表，从而造成**MYSQL客户端并发性==降低==**的局面。
 
 如以下两条语句：
 `update student set no = '123' where id = 1;`，这句由于id有主键索引，所以只会锁这一行；
 `update student set no = '123' where name = 'test';`，这句由于name没有索引，所以会把整张表都锁住进行数据更新，解决方法是给name字段添加索引
 
+### 章节总结：
 
+![image-20220904232049976](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220904232049976.png)
+
+
+
+对**==SQL的优化==**其实绝大部分情况下是在对**==索引==**进行优化！（so掌握好索引的优化也就deal了大部分的SQL优化的问题了！）
 
 
 
 ## 视图/存储过程/触发器
 
-
+视图，存储过程和触发器称之为MYSQL数据库中的存储对象。
 
 ## 锁
 
