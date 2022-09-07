@@ -2615,6 +2615,176 @@ count的几种用法：(count本身是一个聚合函数，是用来求取符合
 
 视图，存储过程和触发器称之为MYSQL数据库中的存储对象。
 
+### 视图
+
+#### 介绍
+
+==**视图**（view）==是一种==**虚拟存在**==的==**表**==（也就是说：本质上视图也是表格！）。视图中的数据并不在数据库中实际存在，行和列数据来自视图的查询中使用的表，并且是在使用视图时动态生成的。
+
+通俗的讲，视图只保存了查询的SQL逻辑，不保存查询的结果，所以我们在创建视图时，主要的工作就落在创建这条SQL查询语句上。即：视图不保存数据，数据都是保存在基表（创建视图的那张表格）中的。
+
+#### 使用语法
+
+- 创建
+
+```mysql
+create [or replace] view 视图名称[(列名列表)] as select查询语句 [with [cascaded | local] check option]
+# or replace 关键字是当你需要去替换某个视图时 就可以使用了,但一般还是建议创建时带上把！
+```
+
+- 查询（查询视图时，视图可被当作一张表格那样，你怎么查别表格的，就怎么查视图即可了）
+
+```mysql
+# 查看创建视图语句：
+show create view 视图名称;
+# 查看视图数据：
+select * from 视图名称 [条件语句];
+```
+
+- 修改（修改视图时，way1中的or replace 关键字是必须要带上的！）
+
+```mysql
+# way1:
+create or replace view 视图名称[(列名列表)] as select查询语句 [with [cascaded | local] check option];
+# way2:
+alter view 视图名称[(列名列表)] as select语句 [with [cascaded | local] check option];
+```
+
+- 删除
+
+```mysql
+drop view [if exists] 视图名称;
+```
+
+- 例子
+
+```mysql
+# 创建
+create or REPLACE VIEW v_1 as select id,name from tb_user3 where age <= 40;
+# 查询
+show create view v_1;
+select * from v_1;
+# 修改
+create or REPLACE VIEW v_1 as select id,name,profession from tb_user3 where age <= 40;
+alter view v_1 as select id,name from tb_user3 where age <= 40;
+# 删除
+drop VIEW if EXISTS v_1;
+```
+
+
+
+问题：既然视图是一张虚拟的表格，那么我往视图中插入数据记录时，效果如何呢？
+
+答：
+
+```mysql
+# 用案例分析来回答这个问题
+# 先基于一个学生表 创建一个视图
+create or REPLACE view stu_v1 as select id,name from student WHERE id < 20;# id小于20才能插入数据记录进去！
+# 用insert into 插入数据
+insert into stu_v1 values(5,'Tom'),(6,'gary');# 这条插入语句执行完成后用select语句查看可以发现这2条记录出现在了视图和基表中。
+insert into stu_v1 values(30,'Cherry');# 这条插入语句执行完成后用select语句查看可以发现这1条记录出现在了基表中，但是 并没有出现在视图中。
+# 具体情况可自己在mysql客户端写一下代码即可！
+```
+
+为了防止上述情况发生，干脆在创建视图时，就添加检查选项with [cascaded | local] check option；这样do之后，插入数据记录到视图中时，就能防止插入一些不符合基本创建条件的数据记录了！
+
+![image-20220907113229518](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220907113229518.png)
+
+
+
+#### 视图的检查选项
+
+若你在创建视图时不给视图加上这个检查选项，那么在你插入数据到这个视图后，该视图和其基表都不会检查应有的条件限制语句，这样是不行的！
+
+当使用WITH CHECK OPTION 子句创建视图时，MYSQL会通过视图检查正在更改的每个行，例如：插入，更新，删除，以使其符合视图的定义（若不符合视图定义时的条件语句，则这些操作都会执行失败！）。MYSQL允许基于另一个视图来创建视图，它还会检查依赖视图中的规则以保持一致性。**为了确定检查的范围**，MYSQL提供了2个可选项：**CASCADED** 和 **LOCAL**，其中**默认值**为**CASCADED**。
+
+##### CASCADED
+
+cascaded中文是**级联**，表明，使用了该检查选项的话，那么当前视图以及其依赖的各个子视图（若有点话）在插入数据记录时都必须要检查其条件语句（各级条件语句都必须要同时满足了才能进行插入数据的操作，否则就是报错“check option failed!”）。
+
+##### LOCAL
+
+local中文是**本地**，表明，使用了该检查选项的话，那么当前视图也会递归地找其依赖的各个子视图（若有的话），在插入数据时，先判断当前视图的条件，然后递归到其子视图，若其子视图没有检查选项则不检查条件，若有检查选项就检查了条件再do是否插入的操作。这很明显和级联cascaded是不同的，对于级联检查选项来说，不论当前视图的子视图是否有检查选项语句，只要当前视图有cascaded检查选项，就必须要递归其all的子视图，当all的子视图的条件和当前视图的条件都满足的时候，才能够do插入数据的操作。
+
+
+
+**注**：关于上面2种检查选项，文字说明可能不好理解，可观看视频（能==更好地理解why是这样的==）[B站对应位置处的视频](https://www.bilibili.com/video/BV1Kr4y1i7ru?p=99&spm_id_from=pageDriver&vd_source=b050ab0adaffa51f5ad24d77efa40057)
+
+
+
+#### 视图的更新条件
+
+并不是all的视图都能够进行增删改的操作的。是有条件的！
+
+==若要使得视图**可更新**，视图中的行与基础表中的行之间必须存在**一对一**的关系==。如果视图包含以下任何一项，则该视图不可更新。
+
+1. 聚合函数 或 窗口函数（SUM()、MIN()、MAX()、COUNT()等）
+
+2. DISTINCT
+
+3. GROUP BY
+
+4. HAVING
+
+5. UNION 或 UNION ALL
+
+   例子：
+
+<img src="C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/69.JPG" alt="69" style="zoom:80%;" />
+
+![image-20220907143449211](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220907143449211.png)
+
+![](C:/Users/11602/Desktop/MySQL%E5%AD%A6%E4%B9%A0/%E5%AD%A6%E4%B9%A0%E6%88%AA%E5%9B%BE/68.JPG)
+
+
+
+#### 视图的作用
+
+![image-20220907143825349](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220907143825349.png)
+
+
+
+#### 案例（巩固练习视图操作）：
+
+![image-20220907143929892](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220907143929892.png)
+
+```mysql
+# 注:以上这几个基表在前面知识点的介绍中已经有源码了，直接拿了创建这些表格即可！
+# 需求1：
+create or replace view 
+ as SELECT id,name,profession,age,gender,status,createtime from tb_user3 with cascaded CHECK OPTION;
+
+# 后续业务中直接操作该视图即可简化操作！
+SELECT * from tb_user_v1;
+
+# 需求2：
+create or REPLACE view v2 as (SELECT c.`name` as '课程名字',s.`name` as '学生名字' from student_course sc ,student s,course c WHERE sc.studentid = s.id and sc.courseid = c.id) with CASCADED CHECK OPTION;
+
+# 后续业务中直接操作该视图即可简化操作！
+SELECT * from v2;
+```
+
+
+
+
+
+### 存储过程
+
+
+
+### 存储函数
+
+
+
+### 触发器
+
+
+
+
+
+
+
 ## 锁
 
 
