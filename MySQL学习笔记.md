@@ -51,6 +51,8 @@ windows下：去官网下载mysql-installer-community-8.0.29.0.msi
 
 ![image-20220821231345843](C:\Users\11602\AppData\Roaming\Typora\typora-user-images\image-20220821231345843.png)
 
+**注**：其中，-u后可直接指定用户名，-p后可直接指定用户密码！
+
 配置环境变量：
 
 添加：C:\Program Files\MySQL\MySQL Server 8.0\bin\
@@ -251,9 +253,9 @@ Data Manipulation Language,用来对数据库中表的数据记录进行增删�
 
 ##### ==注意事项==
 
-- 字符串和日期类型数据应该包含在引号''中
+- **字符串**和**日期类型**数据应该包含在**引号''**中
 - 插入的数据大小应该在字段的规定范围内
-- 插入数据时，==指定的字段==顺序需要与==值的顺序==是一一对应的
+- 插入数据时，**==指定的字段==**顺序需要与**==值的顺序==**是**一一对应**的
 
 
 
@@ -2767,13 +2769,13 @@ SELECT * from v2;
 
 
 
-
+### **==从这里开始后面all的笔记我都记录在MySQL进阶篇对应的pdf上面了，用【pencil在ipad上写写画画一样的！】==**
 
 ### 存储过程
 
 
 
-### 存储函数
+### 存储函数（可理解为SQL中的函数）
 
 
 
@@ -2781,13 +2783,15 @@ SELECT * from v2;
 
 
 
+**总结：**
 
+![image-20220913173431468](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220913173431468.png)
 
 
 
 ## 锁
 
-
+![image-20220913173359316](C:/Users/11602/AppData/Roaming/Typora/typora-user-images/image-20220913173359316.png)
 
 ## InnoDB引擎
 
